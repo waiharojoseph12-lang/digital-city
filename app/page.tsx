@@ -367,6 +367,9 @@ export default function Home() {
           </div>
         </div>
       </div>
+            <p className="text-center text-xs text-slate-400 mt-10">
+        🚀 Powered by Digital Nairobi · Built with Next.js
+      </p>
     </main>
   );
 }
