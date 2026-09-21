@@ -30,7 +30,7 @@ const SAMPLE_VIDEOS = [
 
 // ---------- Cinematic hero video (swap with real Nairobi footage later) ----------
 const HERO_VIDEO =
-  "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4";
+  "https://videos.pexels.com/video-files/18750424/18750424-hd_1920_1080_30fps.mp4";
 
 const hashOf = (s: string) => {
   let h = 0;
