@@ -174,9 +174,147 @@ function Panorama360({ region }: { region: string }) {
     </div>
   );
 }
+// ---------- Fullscreen 360° overlay ----------
+function Fullscreen360({
+  business,
+  region,
+  onClose,
+}: {
+  business: Business;
+  region: string;
+  onClose: () => void;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const viewerRef = useRef<any>(null);
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKey);
+
+    let cancelled = false;
+
+    const init = () => {
+      if (cancelled || !containerRef.current) return;
+      const win = window as any;
+      if (!win.pannellum) {
+        setTimeout(init, 200);
+        return;
+      }
+
+      if (viewerRef.current) {
+        try {
+          viewerRef.current.destroy();
+        } catch {}
+        viewerRef.current = null;
+      }
+
+      try {
+        viewerRef.current = win.pannellum.viewer(containerRef.current, {
+          type: "equirectangular",
+          panorama: panoramaForRegion(region),
+          autoLoad: true,
+          autoRotate: -1.5,
+          showControls: true,
+          compass: false,
+        });
+      } catch (err) {
+        console.error("Pannellum fullscreen init error:", err);
+      }
+    };
+
+    init();
+
+    return () => {
+      cancelled = true;
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", handleKey);
+      if (viewerRef.current) {
+        try {
+          viewerRef.current.destroy();
+        } catch {}
+        viewerRef.current = null;
+      }
+    };
+  }, [region, onClose]);
+
+  const waLink = `https://wa.me/${business.phone}?text=${encodeURIComponent(
+    `Hi ${business.name}, I found you on Digital Nairobi.`
+  )}`;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black">
+      <div ref={containerRef} className="absolute inset-0" />
+
+      <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between pointer-events-none">
+        <div className="flex items-center gap-3 pointer-events-auto">
+          <button
+            onClick={onClose}
+            className="bg-black/60 hover:bg-black/80 text-white text-sm px-4 py-2 rounded-full backdrop-blur transition"
+          >
+            ← Back to map
+          </button>
+          <div className="bg-black/60 text-white text-sm px-3 py-2 rounded-full backdrop-blur">
+            {region}
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          aria-label="Close fullscreen"
+          className="pointer-events-auto bg-black/60 hover:bg-black/80 text-white text-2xl leading-none w-11 h-11 rounded-full backdrop-blur transition flex items-center justify-center"
+        >
+          ×
+        </button>
+      </div>
+
+      <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/90 via-black/60 to-transparent">
+        <div className="flex items-end justify-between gap-4 flex-wrap">
+          <div className="text-white max-w-xl">
+            <span className="inline-block text-xs font-medium bg-white/20 px-2 py-1 rounded-full mb-2">
+              {business.category}
+            </span>
+            <h2 className="text-2xl md:text-3xl font-bold leading-tight">
+              {business.name}
+            </h2>
+            <p className="text-sm text-white/80 mt-1">{business.tagline}</p>
+          </div>
+          <div className="flex gap-2">
+            <a
+              href={waLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-green-500 hover:bg-green-600 text-white font-semibold text-sm px-5 py-3 rounded-full transition"
+            >
+              WhatsApp
+            </a>
+            <a
+              href={`tel:+${business.phone}`}
+              className="bg-white/10 hover:bg-white/20 text-white font-semibold text-sm px-5 py-3 rounded-full backdrop-blur transition"
+            >
+              Call
+            </a>
+          </div>
+        </div>
+        <p className="text-white/50 text-xs mt-4">
+          Drag to look around · Scroll to zoom · Press Esc to close
+        </p>
+      </div>
+    </div>
+  );
+}
+
 
 // ---------- Business card ----------
-function BusinessCard({ business }: { business: Business }) {
+function BusinessCard({
+  business,
+  onView360,
+}: {
+  business: Business;
+  onView360: (business: Business) => void;
+}) {
   const waLink = `https://wa.me/${business.phone}?text=${encodeURIComponent(
     `Hi ${business.name}, I found you on Digital Nairobi.`
   )}`;
@@ -209,7 +347,7 @@ function BusinessCard({ business }: { business: Business }) {
             WhatsApp
           </a>
           <button
-            onClick={() => alert(`360° tour for ${business.name} coming soon`)}
+            onClick={() => onView360(business)}
             className="flex-1 text-xs font-medium bg-slate-100 text-slate-700 px-3 py-2 rounded-lg hover:bg-slate-200 transition"
           >
             View 360°
@@ -225,6 +363,7 @@ export default function Home() {
   const [hovered, setHovered] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("map");
+    const [fullscreenBusiness, setFullscreenBusiness] = useState<Business | null>(null);
 
   const countyOf = (name: string): "Nairobi" | "Kiambu" =>
     KIAMBU_REGIONS.includes(name) ? "Kiambu" : "Nairobi";
@@ -541,7 +680,11 @@ export default function Home() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {businesses.map((b) => (
-                <BusinessCard key={b.id} business={b} />
+                <BusinessCard
+  key={b.id}
+  business={b}
+  onView360={(biz) => setFullscreenBusiness(biz)}
+ />
               ))}
             </div>
           </div>
@@ -561,6 +704,14 @@ export default function Home() {
       <p className="text-center text-xs text-slate-400 py-8">
         Powered by Digital Nairobi · Built with Next.js
       </p>
+            {/* Fullscreen 360° overlay */}
+      {fullscreenBusiness && selected && (
+        <Fullscreen360
+          business={fullscreenBusiness}
+          region={selected}
+          onClose={() => setFullscreenBusiness(null)}
+        />
+      )}
     </main>
   );
 }
