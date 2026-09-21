@@ -14,7 +14,76 @@ const KIAMBU_REGIONS = [
   "Kikuyu", "Kabete", "Kiambu", "Ruiru", "Juja", "Thika",
 ];
 
-// ---------- Placeholder 360 panoramas (equirectangular) ----------
+// ---------- Business seed data (dummy for now — replace with real data later) ----------
+type Business = {
+  id: string;
+  name: string;
+  category: string;
+  region: string;
+  phone: string; // WhatsApp number, format: 254XXXXXXXXX
+  image: string;
+  tagline: string;
+};
+
+const CATEGORIES = [
+  "Boutique", "Showroom", "Salon", "Furniture", "Café", "Electronics",
+];
+
+const SAMPLE_IMAGES = [
+  "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1567401893414-76b7b1e5a7a5?w=600&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1555529669-e69e7aa0ba9a?w=600&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1567016432779-094069958ea5?w=600&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=600&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=600&auto=format&fit=crop",
+];
+
+const hashOf = (s: string) => {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h;
+};
+
+// Generate 3–6 fake businesses for any region, deterministically
+const businessesForRegion = (region: string): Business[] => {
+  const count = 3 + (hashOf(region) % 4); // 3 to 6 businesses
+  const result: Business[] = [];
+
+  for (let i = 0; i < count; i++) {
+    const key = `${region}-${i}`;
+    const h = hashOf(key);
+    const category = CATEGORIES[h % CATEGORIES.length];
+    const image = SAMPLE_IMAGES[h % SAMPLE_IMAGES.length];
+    const nameVariants = [
+      `${region} ${category}`,
+      `${region} ${category}s`,
+      `The ${region} ${category}`,
+      `${category} Hub ${region}`,
+    ];
+    const taglines = [
+      "Authentic Kenyan craftsmanship",
+      "Premium quality, fair prices",
+      "Trusted since 2015",
+      "Nairobi's finest",
+      "Walk-ins welcome",
+      "We ship countrywide",
+    ];
+
+    result.push({
+      id: key,
+      name: nameVariants[h % nameVariants.length],
+      category,
+      region,
+      phone: "254712345678",
+      image,
+      tagline: taglines[h % taglines.length],
+    });
+  }
+
+  return result;
+};
+
+// ---------- Placeholder 360 panoramas ----------
 const SAMPLE_PANORAMAS = [
   "https://pannellum.org/images/alma.jpg",
   "https://pannellum.org/images/cerro-toco-0.jpg",
@@ -28,15 +97,9 @@ const SAMPLE_VIDEOS = [
   "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
 ];
 
-// ---------- Cinematic hero video (swap with real Nairobi footage later) ----------
+// ---------- Cinematic hero video ----------
 const HERO_VIDEO =
   "https://videos.pexels.com/video-files/18750424/18750424-hd_1920_1080_30fps.mp4";
-
-const hashOf = (s: string) => {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-  return h;
-};
 
 const panoramaForRegion = (name: string) =>
   SAMPLE_PANORAMAS[hashOf(name) % SAMPLE_PANORAMAS.length];
@@ -112,6 +175,51 @@ function Panorama360({ region }: { region: string }) {
   );
 }
 
+// ---------- Business card ----------
+function BusinessCard({ business }: { business: Business }) {
+  const waLink = `https://wa.me/${business.phone}?text=${encodeURIComponent(
+    `Hi ${business.name}, I found you on Digital Nairobi.`
+  )}`;
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition group">
+      <div className="relative aspect-[4/3] bg-slate-100 overflow-hidden">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={business.image}
+          alt={business.name}
+          className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+        />
+        <span className="absolute top-2 left-2 bg-white/95 text-slate-700 text-xs font-medium px-2 py-1 rounded-full">
+          {business.category}
+        </span>
+      </div>
+      <div className="p-4">
+        <h3 className="font-semibold text-slate-800 text-sm leading-tight mb-1">
+          {business.name}
+        </h3>
+        <p className="text-xs text-slate-500 mb-3">{business.tagline}</p>
+        <div className="flex gap-2">
+          <a
+            href={waLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 text-center text-xs font-medium bg-green-500 text-white px-3 py-2 rounded-lg hover:bg-green-600 transition"
+          >
+            WhatsApp
+          </a>
+          <button
+            onClick={() => alert(`360° tour for ${business.name} coming soon`)}
+            className="flex-1 text-xs font-medium bg-slate-100 text-slate-700 px-3 py-2 rounded-lg hover:bg-slate-200 transition"
+          >
+            View 360°
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ---------- Main component ----------
 export default function Home() {
   const [hovered, setHovered] = useState<string | null>(null);
@@ -144,11 +252,12 @@ export default function Home() {
   const strokeFor = (county: "Nairobi" | "Kiambu") =>
     county === "Kiambu" ? "#5b21b6" : "#1e40af";
 
+  const businesses = selected ? businessesForRegion(selected) : [];
+
   return (
     <main className="min-h-screen bg-slate-50">
       {/* ============ CINEMATIC HERO ============ */}
       <section className="relative w-full h-[70vh] min-h-[500px] overflow-hidden">
-        {/* Background video */}
         <video
           src={HERO_VIDEO}
           autoPlay
@@ -158,10 +267,8 @@ export default function Home() {
           className="absolute inset-0 w-full h-full object-cover"
         />
 
-        {/* Gradient overlay for readability */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-black/80" />
 
-        {/* Content on top */}
         <div className="relative z-10 h-full flex flex-col items-center justify-center text-center px-6">
           <span className="text-xs uppercase tracking-[0.3em] text-white/80 mb-4">
             Nairobi · Kiambu · Kenya
@@ -182,7 +289,6 @@ export default function Home() {
           </a>
         </div>
 
-        {/* Bottom fade to blend into page */}
         <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-slate-50 to-transparent" />
       </section>
 
@@ -305,7 +411,6 @@ export default function Home() {
                   role="img"
                   aria-label="Map of Nairobi and nearby Kiambu areas"
                 >
-                  {/* KIAMBU */}
                   <polygon points="220,180 300,150 360,170 340,230 260,240 210,220" fill={fillFor("Kikuyu", "Kiambu")} stroke={strokeFor("Kiambu")} strokeWidth="2" {...regionProps("Kikuyu", "Kiambu")} />
                   <text x="265" y="205" textAnchor="middle" fontSize="13" fill="#3b0764" pointerEvents="none">Kikuyu</text>
                   <polygon points="300,150 420,140 470,165 440,215 360,170" fill={fillFor("Kabete", "Kiambu")} stroke={strokeFor("Kiambu")} strokeWidth="2" {...regionProps("Kabete", "Kiambu")} />
@@ -319,7 +424,6 @@ export default function Home() {
                   <polygon points="880,240 940,245 950,285 880,300 820,265" fill={fillFor("Thika", "Kiambu")} stroke={strokeFor("Kiambu")} strokeWidth="2" {...regionProps("Thika", "Kiambu")} />
                   <text x="890" y="275" textAnchor="middle" fontSize="13" fill="#3b0764" pointerEvents="none">Thika</text>
 
-                  {/* NAIROBI */}
                   <polygon points="130,330 220,290 300,300 290,380 200,400 140,380" fill={fillFor("Westlands", "Nairobi")} stroke={strokeFor("Nairobi")} strokeWidth="2" {...regionProps("Westlands", "Nairobi")} />
                   <text x="215" y="350" textAnchor="middle" fontSize="13" fill="#0c1e4a" pointerEvents="none">Westlands</text>
                   <polygon points="80,340 140,320 130,330 140,380 100,400 70,380" fill={fillFor("Dagoretti North", "Nairobi")} stroke={strokeFor("Nairobi")} strokeWidth="2" {...regionProps("Dagoretti North", "Nairobi")} />
@@ -411,6 +515,47 @@ export default function Home() {
             )}
           </div>
         </div>
+
+        {/* ============ BUSINESSES IN SELECTED REGION ============ */}
+        {selected && (
+          <div className="mt-12">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-800 mb-1">
+                  Businesses in {selected}
+                </h2>
+                <p className="text-slate-600 text-sm">
+                  {businesses.length} places · click WhatsApp to contact
+                </p>
+              </div>
+              <span
+                className={`text-xs font-semibold px-3 py-1 rounded-full ${
+                  countyOf(selected) === "Kiambu"
+                    ? "bg-purple-100 text-purple-700"
+                    : "bg-blue-100 text-blue-700"
+                }`}
+              >
+                {countyOf(selected)} County
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {businesses.map((b) => (
+                <BusinessCard key={b.id} business={b} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* No region selected yet — prompt */}
+        {!selected && (
+          <div className="mt-12 text-center py-12">
+            <div className="text-5xl mb-3">🏪</div>
+            <p className="text-slate-600 font-medium">
+              Pick a region above to see its businesses
+            </p>
+          </div>
+        )}
       </div>
 
       <p className="text-center text-xs text-slate-400 py-8">
