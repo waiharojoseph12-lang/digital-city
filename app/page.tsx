@@ -28,6 +28,10 @@ const SAMPLE_VIDEOS = [
   "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
 ];
 
+// ---------- Cinematic hero video (swap with real Nairobi footage later) ----------
+const HERO_VIDEO =
+  "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4";
+
 const hashOf = (s: string) => {
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
@@ -42,7 +46,7 @@ const videoForRegion = (name: string) =>
 
 type Tab = "map" | "360" | "video";
 
-// ---------- Pannellum viewer wrapper (uses CDN-loaded window.pannellum) ----------
+// ---------- Pannellum viewer wrapper ----------
 function Panorama360({ region }: { region: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<any>(null);
@@ -55,12 +59,10 @@ function Panorama360({ region }: { region: string }) {
 
       const win = window as any;
       if (!win.pannellum) {
-        // CDN script hasn't loaded yet — retry shortly
         setTimeout(init, 200);
         return;
       }
 
-      // Clean up previous viewer
       if (viewerRef.current) {
         try {
           viewerRef.current.destroy();
@@ -143,14 +145,57 @@ export default function Home() {
     county === "Kiambu" ? "#5b21b6" : "#1e40af";
 
   return (
-    <main className="min-h-screen bg-slate-50 p-6">
-      <div className="max-w-6xl mx-auto">
-        <h1 className="text-3xl font-bold text-slate-800 mb-2">
-          Digital Nairobi
-        </h1>
-        <p className="text-slate-600 mb-6">
-          Pick a region · Explore the map · Take a 360° look · Watch its story
-        </p>
+    <main className="min-h-screen bg-slate-50">
+      {/* ============ CINEMATIC HERO ============ */}
+      <section className="relative w-full h-[70vh] min-h-[500px] overflow-hidden">
+        {/* Background video */}
+        <video
+          src={HERO_VIDEO}
+          autoPlay
+          muted
+          loop
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+
+        {/* Gradient overlay for readability */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-black/80" />
+
+        {/* Content on top */}
+        <div className="relative z-10 h-full flex flex-col items-center justify-center text-center px-6">
+          <span className="text-xs uppercase tracking-[0.3em] text-white/80 mb-4">
+            Nairobi · Kiambu · Kenya
+          </span>
+          <h1 className="text-5xl md:text-7xl font-bold text-white mb-4 tracking-tight">
+            Digital Nairobi
+          </h1>
+          <p className="text-lg md:text-xl text-white/90 max-w-2xl mb-8">
+            Discover the city&apos;s finest showrooms, boutiques, and businesses — 
+            all on one interactive map with 360° virtual views.
+          </p>
+          <a
+            href="#explore"
+            className="inline-flex items-center gap-2 bg-white text-slate-900 font-semibold px-6 py-3 rounded-full hover:bg-slate-100 transition shadow-lg"
+          >
+            Start exploring
+            <span>↓</span>
+          </a>
+        </div>
+
+        {/* Bottom fade to blend into page */}
+        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-slate-50 to-transparent" />
+      </section>
+
+      {/* ============ MAIN CONTENT ============ */}
+      <div id="explore" className="max-w-6xl mx-auto px-6 py-12">
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-slate-800 mb-1">
+            Pick a region
+          </h2>
+          <p className="text-slate-600">
+            Explore the map · Take a 360° look · Watch its story
+          </p>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* LEFT PANEL */}
@@ -367,8 +412,9 @@ export default function Home() {
           </div>
         </div>
       </div>
-            <p className="text-center text-xs text-slate-400 mt-10">
-        🚀 Powered by Digital Nairobi · Built with Next.js
+
+      <p className="text-center text-xs text-slate-400 py-8">
+        Powered by Digital Nairobi · Built with Next.js
       </p>
     </main>
   );
