@@ -24,6 +24,20 @@ type Business = {
   image: string;
   tagline: string;
 };
+type Property = {
+  id: string;
+  name: string;
+  listingType: "Rent" | "Sale";
+  propertyType: string;
+  region: string;
+  phone: string;
+  image: string;
+  tagline: string;
+  price: number;
+  priceUnit: "month" | "total";
+  bedrooms: number;
+  bathrooms: number;
+};
 
 const CATEGORIES = [
   "Boutique", "Showroom", "Salon", "Furniture", "Café", "Electronics",
@@ -82,6 +96,61 @@ const businessesForRegion = (region: string): Business[] => {
 
   return result;
 };
+// Sample property cover images
+const PROPERTY_IMAGES = [
+  "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&auto=format&fit=crop",
+];
+
+// Generate 2–4 fake properties per region, deterministically
+const propertiesForRegion = (region: string): Property[] => {
+  const count = 2 + (hashOf(region + "-props") % 3); // 2 to 4
+  const result: Property[] = [];
+  const types = ["Apartment", "House", "Townhouse", "Office"];
+  const taglines = [
+    "Modern finishes · Ready to move in",
+    "Prime location · Secure compound",
+    "Recently renovated · Ample parking",
+    "Great views · Backup generator",
+    "Furnished · Serviced",
+    "Family-friendly neighborhood",
+  ];
+
+  for (let i = 0; i < count; i++) {
+    const key = `${region}-prop-${i}`;
+    const h = hashOf(key);
+    const listingType: "Rent" | "Sale" = h % 2 === 0 ? "Rent" : "Sale";
+    const propertyType = types[h % types.length];
+    const bedrooms = 1 + (h % 4);
+    const bathrooms = 1 + (h % 3);
+    const price =
+      listingType === "Rent"
+        ? 30000 + (h % 16) * 10000
+        : 6000000 + (h % 40) * 1000000;
+
+    result.push({
+      id: key,
+      name: `${bedrooms}-Bedroom ${propertyType} in ${region}`,
+      listingType,
+      propertyType,
+      region,
+      phone: "254712345678",
+      image: PROPERTY_IMAGES[h % PROPERTY_IMAGES.length],
+      tagline: taglines[h % taglines.length],
+      price,
+      priceUnit: listingType === "Rent" ? "month" : "total",
+      bedrooms,
+      bathrooms,
+    });
+  }
+
+  return result;
+};
+
 
 // ---------- Placeholder 360 panoramas ----------
 const SAMPLE_PANORAMAS = [
@@ -358,12 +427,96 @@ function BusinessCard({
   );
 }
 
+// ---------- Property card ----------
+function PropertyCard({
+  property,
+  onView360,
+}: {
+  property: Property;
+  onView360: () => void;
+}) {
+  const waLink = `https://wa.me/${property.phone}?text=${encodeURIComponent(
+    `Hi, I'm interested in "${property.name}" listed on Digital Nairobi.`
+  )}`;
+
+  // Format price: 45000 → "KES 45,000" ; 12000000 → "KES 12,000,000"
+  const formattedPrice = property.price.toLocaleString("en-KE");
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition group">
+      <div className="relative aspect-[4/3] bg-slate-100 overflow-hidden">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={property.image}
+          alt={property.name}
+          className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+        />
+        <span
+          className={`absolute top-2 left-2 text-xs font-semibold px-2 py-1 rounded-full ${
+            property.listingType === "Rent"
+              ? "bg-green-500 text-white"
+              : "bg-blue-600 text-white"
+          }`}
+        >
+          For {property.listingType}
+        </span>
+        <span className="absolute top-2 right-2 bg-white/95 text-slate-700 text-xs font-medium px-2 py-1 rounded-full">
+          {property.propertyType}
+        </span>
+      </div>
+      <div className="p-4">
+        <h3 className="font-semibold text-slate-800 text-sm leading-tight mb-1">
+          {property.name}
+        </h3>
+        <p className="text-xs text-slate-500 mb-3">{property.tagline}</p>
+
+        {/* Price + specs row */}
+        <div className="flex items-center justify-between mb-3 pb-3 border-b border-slate-100">
+          <div className="text-base font-bold text-slate-900">
+            KES {formattedPrice}
+            {property.priceUnit === "month" && (
+              <span className="text-xs font-normal text-slate-500">/mo</span>
+            )}
+          </div>
+          <div className="flex items-center gap-3 text-xs text-slate-600">
+            <span className="flex items-center gap-1">
+              🛏️ {property.bedrooms}
+            </span>
+            <span className="flex items-center gap-1">
+              🚿 {property.bathrooms}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex gap-2">
+          <a
+            href={waLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 text-center text-xs font-medium bg-green-500 text-white px-3 py-2 rounded-lg hover:bg-green-600 transition"
+          >
+            WhatsApp
+          </a>
+          <button
+            onClick={onView360}
+            className="flex-1 text-xs font-medium bg-slate-100 text-slate-700 px-3 py-2 rounded-lg hover:bg-slate-200 transition"
+          >
+            View 360°
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ---------- Main component ----------
 export default function Home() {
   const [hovered, setHovered] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("map");
-    const [fullscreenBusiness, setFullscreenBusiness] = useState<Business | null>(null);
+    const [fullscreenBusiness, setFullscreenBusiness]
+   = useState<Business | null>(null);
+     const [contentTab, setContentTab] = useState<"businesses" | "properties">("businesses");
 
   const countyOf = (name: string): "Nairobi" | "Kiambu" =>
     KIAMBU_REGIONS.includes(name) ? "Kiambu" : "Nairobi";
@@ -392,6 +545,7 @@ export default function Home() {
     county === "Kiambu" ? "#5b21b6" : "#1e40af";
 
   const businesses = selected ? businessesForRegion(selected) : [];
+    const properties = selected ? propertiesForRegion(selected) : [];
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -656,39 +810,91 @@ export default function Home() {
         </div>
 
         {/* ============ BUSINESSES IN SELECTED REGION ============ */}
-        {selected && (
-          <div className="mt-12">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-2xl font-bold text-slate-800 mb-1">
-                  Businesses in {selected}
-                </h2>
-                <p className="text-slate-600 text-sm">
-                  {businesses.length} places · click WhatsApp to contact
-                </p>
-              </div>
-              <span
-                className={`text-xs font-semibold px-3 py-1 rounded-full ${
-                  countyOf(selected) === "Kiambu"
-                    ? "bg-purple-100 text-purple-700"
-                    : "bg-blue-100 text-blue-700"
-                }`}
-              >
-                {countyOf(selected)} County
-              </span>
+      {selected && (
+        <div className="mt-12">
+          <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-800 mb-1">
+                {contentTab === "businesses" ? "Businesses" : "Properties"} in {selected}
+              </h2>
+              <p className="text-slate-600 text-sm">
+                {contentTab === "businesses"
+                  ? `${businesses.length} places · click WhatsApp to contact`
+                  : `${properties.length} listings · click WhatsApp to enquire`}
+              </p>
             </div>
+            <span
+              className={`text-xs font-semibold px-3 py-1 rounded-full ${
+                countyOf(selected) === "Kiambu"
+                  ? "bg-purple-100 text-purple-700"
+                  : "bg-blue-100 text-blue-700"
+              }`}
+            >
+              {countyOf(selected)} County
+            </span>
+          </div>
 
+          {/* Content toggle */}
+          <div className="inline-flex bg-slate-100 rounded-full p-1 mb-6">
+            <button
+              onClick={() => setContentTab("businesses")}
+              className={`px-5 py-2 text-sm font-medium rounded-full transition ${
+                contentTab === "businesses"
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              🏪 Businesses ({businesses.length})
+            </button>
+            <button
+              onClick={() => setContentTab("properties")}
+              className={`px-5 py-2 text-sm font-medium rounded-full transition ${
+                contentTab === "properties"
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              🏠 Properties ({properties.length})
+            </button>
+          </div>
+
+          {contentTab === "businesses" && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {businesses.map((b) => (
                 <BusinessCard
-  key={b.id}
-  business={b}
-  onView360={(biz) => setFullscreenBusiness(biz)}
- />
+                  key={b.id}
+                  business={b}
+                  onView360={(biz) => setFullscreenBusiness(biz)}
+                />
               ))}
             </div>
-          </div>
-        )}
+          )}
+
+          {contentTab === "properties" && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {properties.map((p) => (
+                <PropertyCard
+                  key={p.id}
+                  property={p}
+                               onView360={() =>
+                setFullscreenBusiness({
+                  id: p.id,
+                  name: p.name,
+                  category: `For ${p.listingType} · ${p.propertyType}`,
+                  region: p.region,
+                  phone: p.phone,
+                  image: p.image,
+                  tagline: `${p.tagline} · KES ${p.price.toLocaleString("en-KE")}${
+                    p.priceUnit === "month" ? "/mo" : ""
+                  }`,
+                })
+              }
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
         {/* No region selected yet — prompt */}
         {!selected && (
