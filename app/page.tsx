@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { supabase } from "./lib/supabase";
 
 // ---------- Region data ----------
 const NAIROBI_REGIONS = [
@@ -516,6 +517,17 @@ export default function Home() {
   const [tab, setTab] = useState<Tab>("map");
     const [fullscreenBusiness, setFullscreenBusiness]
    = useState<Business | null>(null);
+     useEffect(() => {
+    const testConnection = async () => {
+      const { data, error } = await supabase.from("businesses").select("*");
+      if (error) {
+        console.error("Supabase connection error:", error);
+      } else {
+        console.log("Supabase connected! Businesses in DB:", data.length);
+      }
+    };
+    testConnection();
+  }, []);
      const [contentTab, setContentTab] = useState<"businesses" | "properties">("businesses");
 
   const countyOf = (name: string): "Nairobi" | "Kiambu" =>
@@ -876,7 +888,7 @@ export default function Home() {
                 <PropertyCard
                   key={p.id}
                   property={p}
-                               onView360={() =>
+                           onView360={() =>
                 setFullscreenBusiness({
                   id: p.id,
                   name: p.name,
