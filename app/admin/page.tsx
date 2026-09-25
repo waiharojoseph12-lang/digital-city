@@ -25,7 +25,7 @@ export default function AdminPage() {
   const router = useRouter();
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [userEmail, setUserEmail] = useState<string | null>(null);
-
+  const [adminTab, setAdminTab] = useState<"business" | "property">("business");
   // Form state
   const [name, setName] = useState("");
   const [category, setCategory] = useState(CATEGORIES[0]);
@@ -34,7 +34,7 @@ export default function AdminPage() {
   const [tagline, setTagline] = useState("");
   const [services, setServices] = useState("");
   const [imageUrl, setImageUrl] = useState("");
-
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -63,6 +63,29 @@ export default function AdminPage() {
     setSaving(true);
     setMessage(null);
     setError(null);
+    // Upload photo if one was selected
+    let finalImageUrl = imageUrl;
+    if (imageFile) {
+      const fileExt = imageFile.name.split(".").pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+      const filePath = `businesses/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("business-photos")
+        .upload(filePath, imageFile);
+
+      if (uploadError) {
+        setSaving(false);
+        setError(`Upload failed: ${uploadError.message}`);
+        return;
+      }
+
+      const { data: urlData } = supabase.storage
+        .from("business-photos")
+        .getPublicUrl(filePath);
+
+      finalImageUrl = urlData.publicUrl;
+    }
 
     const servicesArray = services
       .split(",")
@@ -75,7 +98,7 @@ export default function AdminPage() {
       region,
       phone,
       tagline,
-      image: imageUrl || null,
+      image: finalImageUrl || null,
       services: servicesArray,
       is_paid: true,
       paid_until: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
@@ -127,8 +150,33 @@ export default function AdminPage() {
 
         {/* Form */}
         <div className="bg-white rounded-2xl shadow p-6">
+                   <div className="flex items-center gap-2 mb-4">
+            <button
+              type="button"
+              onClick={() => setAdminTab("business")}
+              className={`px-4 py-2 text-sm font-medium rounded-full transition ${
+                adminTab === "business"
+                  ? "bg-blue-600 text-white"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              🏪 Business
+            </button>
+            <button
+              type="button"
+              onClick={() => setAdminTab("property")}
+              className={`px-4 py-2 text-sm font-medium rounded-full transition ${
+                adminTab === "property"
+                  ? "bg-purple-600 text-white"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              🏠 Property
+            </button>
+          </div>
+
           <h2 className="text-lg font-semibold text-slate-800 mb-4">
-            Add a new business
+            Add a new {adminTab}
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -231,21 +279,29 @@ export default function AdminPage() {
               </p>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Image URL
-              </label>
-              <input
-                type="url"
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                placeholder="https://..."
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                     <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Photo
+            </label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+              className="w-full text-sm text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 file:cursor-pointer border border-slate-300 rounded-lg"
+            />
+            <p className="text-xs text-slate-400 mt-1">
+              {imageFile ? `Selected: ${imageFile.name}` : "Choose a photo from your device"}
+            </p>
+
+            {imageFile && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={URL.createObjectURL(imageFile)}
+                alt="Preview"
+                className="mt-3 w-32 h-32 object-cover rounded-lg border border-slate-200"
               />
-              <p className="text-xs text-slate-400 mt-1">
-                Paste a photo link (for now)
-              </p>
-            </div>
+            )}
+          </div>
 
             {error && (
               <div className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">
