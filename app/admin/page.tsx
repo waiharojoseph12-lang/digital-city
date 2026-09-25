@@ -26,6 +26,7 @@ export default function AdminPage() {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [adminTab, setAdminTab] = useState<"business" | "property">("business");
+    const [pendingListings, setPendingListings] = useState<any[]>([]);
   // Form state
   const [name, setName] = useState("");
   const [category, setCategory] = useState(CATEGORIES[0]);
@@ -52,10 +53,44 @@ export default function AdminPage() {
     };
     checkAuth();
   }, [router]);
+  
+  // Fetch pending listings
+  const fetchPending = async () => {
+    const { data, error } = await supabase
+      .from("businesses")
+      .select("*")
+      .eq("status", "pending")
+      .order("created_at", { ascending: false });
+    if (error) {
+      console.error("Error fetching pending listings:", error);
+      return;
+    }
+
+    setPendingListings(data || []);
+  };
+  useEffect(() => {
+    fetchPending();
+  }, []);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push("/login");
+  };
+    const handleApproval = async (
+    id: string,
+    newStatus: "approved" | "rejected"
+  ) => {
+    const { error } = await supabase
+      .from("businesses")
+      .update({ status: newStatus })
+      .eq("id", id);
+
+    if (error) {
+      alert(`Error: ${error.message}`);
+      return;
+    }
+
+    fetchPending();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -324,6 +359,86 @@ export default function AdminPage() {
             </button>
           </form>
         </div>
+        
+        {/* Pending Listings */}
+        {pendingListings.length > 0 && (
+          <div className="bg-white rounded-2xl shadow p-6 mt-8">
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold text-slate-800">
+                Pending Listings ({pendingListings.length})
+              </h2>
+              <p className="text-sm text-slate-500 mt-1">
+                New businesses awaiting approval
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              {pendingListings.map((listing) => (
+                <div
+                  key={listing.id}
+                  className="border border-slate-200 rounded-lg p-4"
+                >
+                  <div className="flex justify-between items-start gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-semibold text-slate-800">
+                          {listing.name}
+                        </h3>
+                        <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                          Pending
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 mb-2">
+                        {listing.category} · {listing.region} ·{" "}
+                        {listing.phone}
+                      </p>
+                      {listing.tagline && (
+                        <p className="text-sm text-slate-600 mb-2">
+                          {listing.tagline}
+                        </p>
+                      )}
+                      {listing.services && listing.services.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-2">
+                          {listing.services.map((s: string, i: number) => (
+                            <span
+                              key={i}
+                              className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full"
+                            >
+                              {s}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {listing.image && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={listing.image}
+                          alt={listing.name}
+                          className="w-24 h-24 object-cover rounded-lg border border-slate-200 mt-2"
+                        />
+                      )}
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <button
+                        onClick={() => handleApproval(listing.id, "approved")}
+                        className="bg-green-500 hover:bg-green-600 text-white text-xs font-medium px-4 py-2 rounded-lg transition whitespace-nowrap"
+                      >
+                        ✓ Approve
+                      </button>
+                      <button
+                        onClick={() => handleApproval(listing.id, "rejected")}
+                        className="bg-red-500 hover:bg-red-600 text-white text-xs font-medium px-4 py-2 rounded-lg transition whitespace-nowrap"
+                      >
+                        ✗ Reject
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </main>
   );
