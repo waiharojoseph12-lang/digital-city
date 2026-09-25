@@ -24,6 +24,7 @@ type Business = {
   phone: string; // WhatsApp number, format: 254XXXXXXXXX
   image: string;
   tagline: string;
+    services?: string[];
 };
 type Property = {
   id: string;
@@ -414,6 +415,23 @@ function BusinessCard({
           {business.name}
         </h3>
         <p className="text-xs text-slate-500 mb-3">{business.tagline}</p>
+                  {business.services && business.services.length > 0 && (
+            <div className="flex flex-wrap gap-1 mb-3">
+              {business.services.slice(0, 3).map((service, idx) => (
+                <span
+                  key={idx}
+                  className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full"
+                >
+                  {service}
+                </span>
+              ))}
+              {business.services.length > 3 && (
+                <span className="text-[10px] text-slate-400">
+                  +{business.services.length - 3} more
+                </span>
+              )}
+            </div>
+          )}
         <div className="flex gap-2">
           <a
             href={waLink}
