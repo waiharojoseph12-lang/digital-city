@@ -432,22 +432,28 @@ function BusinessCard({
               )}
             </div>
           )}
-        <div className="flex gap-2">
-          <a
-            href={waLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex-1 text-center text-xs font-medium bg-green-500 text-white px-3 py-2 rounded-lg hover:bg-green-600 transition"
-          >
-            WhatsApp
-          </a>
-          <button
-            onClick={() => onView360(business)}
-            className="flex-1 text-xs font-medium bg-slate-100 text-slate-700 px-3 py-2 rounded-lg hover:bg-slate-200 transition"
-          >
-            View 360°
-          </button>
-        </div>
+                  <div className="grid grid-cols-3 gap-2">
+            <a
+              href={`tel:+${business.phone}`}
+              className="text-center text-xs font-medium bg-blue-500 text-white px-2 py-2 rounded-lg hover:bg-blue-600 transition"
+            >
+              📞 Call
+            </a>
+            <a
+              href={waLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-center text-xs font-medium bg-green-500 text-white px-2 py-2 rounded-lg hover:bg-green-600 transition"
+            >
+              WhatsApp
+            </a>
+            <button
+              onClick={() => onView360(business)}
+              className="text-xs font-medium bg-slate-100 text-slate-700 px-2 py-2 rounded-lg hover:bg-slate-200 transition"
+            >
+              360°
+            </button>
+          </div>
       </div>
     </div>
   );
