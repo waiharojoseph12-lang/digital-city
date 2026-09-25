@@ -517,17 +517,7 @@ export default function Home() {
   const [tab, setTab] = useState<Tab>("map");
     const [fullscreenBusiness, setFullscreenBusiness]
    = useState<Business | null>(null);
-     useEffect(() => {
-    const testConnection = async () => {
-      const { data, error } = await supabase.from("businesses").select("*");
-      if (error) {
-        console.error("Supabase connection error:", error);
-      } else {
-        console.log("Supabase connected! Businesses in DB:", data.length);
-      }
-    };
-    testConnection();
-  }, []);
+
      const [contentTab, setContentTab] = useState<"businesses" | "properties">("businesses");
 
   const countyOf = (name: string): "Nairobi" | "Kiambu" =>
@@ -556,8 +546,32 @@ export default function Home() {
   const strokeFor = (county: "Nairobi" | "Kiambu") =>
     county === "Kiambu" ? "#5b21b6" : "#1e40af";
 
-  const businesses = selected ? businessesForRegion(selected) : [];
-    const properties = selected ? propertiesForRegion(selected) : [];
+   const [businesses, setBusinesses] = useState<Business[]>([]);
+  const properties = selected ? propertiesForRegion(selected) : [];
+
+  useEffect(() => {
+    if (!selected) {
+      setBusinesses([]);
+      return;
+    }
+
+    const fetchBusinesses = async () => {
+      const { data, error } = await supabase
+        .from("businesses")
+        .select("*")
+        .eq("region", selected);
+
+      if (error) {
+        console.error("Error fetching businesses:", error);
+        setBusinesses([]);
+        return;
+      }
+
+      setBusinesses((data as Business[]) || []);
+    };
+
+    fetchBusinesses();
+  }, [selected]);
 
   return (
     <main className="min-h-screen bg-slate-50">
