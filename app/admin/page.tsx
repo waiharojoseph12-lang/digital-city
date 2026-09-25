@@ -109,7 +109,24 @@ export default function AdminPage() {
 
             fetchPending();
         };
+  const handleMarkPaid = async (id: string) => {
+    const { error } = await supabase
+      .from("businesses")
+      .update({
+        is_paid: true,
+        paid_until: new Date(
+          Date.now() + 30 * 24 * 60 * 60 * 1000
+        ).toISOString(),
+      })
+      .eq("id", id);
 
+    if (error) {
+      alert(`Error: ${error.message}`);
+      return;
+    }
+
+    fetchApproved();
+  };
         const handleSubmit = async (e: React.FormEvent) => {
             e.preventDefault();
             setSaving(true);
@@ -454,6 +471,67 @@ export default function AdminPage() {
                             </div>
                         </div>
                     )}
+                    
+        {/* Approved but Unpaid Listings */}
+        {approvedListings.length > 0 && (
+          <div className="bg-white rounded-2xl shadow p-6 mt-8">
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold text-slate-800">
+                Approved — Awaiting Payment ({approvedListings.length})
+              </h2>
+              <p className="text-sm text-slate-500 mt-1">
+                Mark as paid to make them visible on the map
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              {approvedListings.map((listing) => (
+                <div
+                  key={listing.id}
+                  className="border border-slate-200 rounded-lg p-4"
+                >
+                  <div className="flex justify-between items-start gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-semibold text-slate-800">
+                          {listing.name}
+                        </h3>
+                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                          Unpaid
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 mb-2">
+                        {listing.category} · {listing.region} · {listing.phone}
+                      </p>
+                      {listing.tagline && (
+                        <p className="text-sm text-slate-600 mb-2">
+                          {listing.tagline}
+                        </p>
+                      )}
+                      {listing.image && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={listing.image}
+                          alt={listing.name}
+                          className="w-24 h-24 object-cover rounded-lg border border-slate-200 mt-2"
+                        />
+                      )}
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <button
+                        onClick={() => handleMarkPaid(listing.id)}
+                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-4 py-2 rounded-lg transition whitespace-nowrap"
+                      >
+                        💰 Mark as Paid
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
                 </div>
             </main>
         );
