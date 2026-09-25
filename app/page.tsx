@@ -382,13 +382,25 @@ function Fullscreen360({
 function BusinessCard({
   business,
   onView360,
+  reviews,
 }: {
   business: Business;
   onView360: (business: Business) => void;
+        reviews: any[];
 }) {
   const waLink = `https://wa.me/${business.phone}?text=${encodeURIComponent(
     `Hi ${business.name}, I found you on Digital Nairobi.`
   )}`;
+  
+  const businessReviews = reviews.filter(
+    (r: any) => r.business_id === business.id
+  );
+  const reviewCount = businessReviews.length;
+  const avgRating =
+    reviewCount > 0
+      ? businessReviews.reduce((sum: number, r: any) => sum + r.rating, 0) /
+        reviewCount
+      : 0;
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition group">
@@ -415,6 +427,20 @@ function BusinessCard({
           {business.name}
         </h3>
         <p className="text-xs text-slate-500 mb-3">{business.tagline}</p>
+                {reviewCount > 0 && (
+          <div className="flex items-center gap-1 mb-2 text-xs">
+            <span className="text-yellow-500">
+              {"★".repeat(Math.round(avgRating))}
+              {"☆".repeat(5 - Math.round(avgRating))}
+            </span>
+            <span className="text-slate-600 font-medium">
+              {avgRating.toFixed(1)}
+            </span>
+            <span className="text-slate-400">
+              ({reviewCount})
+            </span>
+          </div>
+        )}
                   {business.services && business.services.length > 0 && (
             <div className="flex flex-wrap gap-1 mb-3">
               {business.services.slice(0, 3).map((service, idx) => (
@@ -578,6 +604,8 @@ export default function Home() {
     county === "Kiambu" ? "#5b21b6" : "#1e40af";
 
    const [businesses, setBusinesses] = useState<Business[]>([]);
+     const [reviews, setReviews] = useState<any[]>([]);
+       const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const properties = selected ? propertiesForRegion(selected) : [];
 
   useEffect(() => {
@@ -601,8 +629,21 @@ export default function Home() {
 
       setBusinesses((data as Business[]) || []);
     };
+          const fetchReviews = async () => {
+        const { data, error } = await supabase
+          .from("reviews")
+          .select("*");
+
+        if (error) {
+          console.error("Error fetching reviews:", error);
+          return;
+        }
+
+        setReviews(data || []);
+      };
 
     fetchBusinesses();
+        fetchReviews();
   }, [selected]);
 
   return (
@@ -923,6 +964,7 @@ export default function Home() {
                   key={b.id}
                   business={b}
                   onView360={(biz) => setFullscreenBusiness(biz)}
+                            reviews={reviews}
                 />
               ))}
             </div>
