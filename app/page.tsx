@@ -590,7 +590,8 @@ export default function Home() {
       const { data, error } = await supabase
         .from("businesses")
         .select("*")
-        .eq("region", selected);
+        .eq("region", selected)
+        .eq("is_paid", true)
 
       if (error) {
         console.error("Error fetching businesses:", error);
