@@ -393,11 +393,18 @@ function BusinessCard({
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition group">
       <div className="relative aspect-[4/3] bg-slate-100 overflow-hidden">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={business.image}
-          alt={business.name}
-          className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
-        />
+               {business.image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={business.image}
+            alt={business.name}
+            className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center text-5xl">
+            🏪
+          </div>
+        )}
         <span className="absolute top-2 left-2 bg-white/95 text-slate-700 text-xs font-medium px-2 py-1 rounded-full">
           {business.category}
         </span>
