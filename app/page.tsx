@@ -384,11 +384,13 @@ function BusinessCard({
   onView360,
   reviews,
         onLeaveReview,
+              onViewReviews,
 }: {
   business: Business;
   onView360: (business: Business) => void;
         reviews: any[];
               onLeaveReview: (business: Business) => void;
+                    onViewReviews: (business: Business) => void;
 }) {
   const waLink = `https://wa.me/${business.phone}?text=${encodeURIComponent(
     `Hi ${business.name}, I found you on Digital Nairobi.`
@@ -429,8 +431,12 @@ function BusinessCard({
           {business.name}
         </h3>
         <p className="text-xs text-slate-500 mb-3">{business.tagline}</p>
-                {reviewCount > 0 && (
-          <div className="flex items-center gap-1 mb-2 text-xs">
+                      {reviewCount > 0 && (
+          <button
+            type="button"
+            onClick={() => onViewReviews(business)}
+            className="flex items-center gap-1 mb-2 text-xs hover:bg-yellow-50 px-2 py-1 -ml-2 rounded-lg transition"
+          >
             <span className="text-yellow-500">
               {"★".repeat(Math.round(avgRating))}
               {"☆".repeat(5 - Math.round(avgRating))}
@@ -441,7 +447,7 @@ function BusinessCard({
             <span className="text-slate-400">
               ({reviewCount})
             </span>
-          </div>
+          </button>
         )}
                   {business.services && business.services.length > 0 && (
             <div className="flex flex-wrap gap-1 mb-3">
@@ -492,6 +498,278 @@ function BusinessCard({
     </div>
   );
 }
+
+// ---------- Review modal ----------
+function ReviewModal({
+  business,
+  onClose,
+  onSubmitted,
+}: {
+  business: any;
+  onClose: () => void;
+  onSubmitted: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) {
+      setError("Please enter your name");
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+
+    const { error: insertError } = await supabase.from("reviews").insert({
+      business_id: business.id,
+      rating,
+      comment,
+      reviewer_name: name,
+    });
+
+    setSubmitting(false);
+
+    if (insertError) {
+      setError(insertError.message);
+      return;
+    }
+
+    onSubmitted();
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-slate-800">
+            Leave a Review
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-600 text-xl"
+          >
+            ×
+          </button>
+        </div>
+
+        <p className="text-sm text-slate-500 mb-4">
+          For: <span className="font-medium text-slate-700">{business?.name}</span>
+        </p>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Your name
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="e.g. Jane M."
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Rating
+            </label>
+            <div className="flex gap-1 text-3xl">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  type="button"
+                  onClick={() => setRating(star)}
+                  className={`${
+                    star <= rating ? "text-yellow-500" : "text-slate-300"
+                  } hover:text-yellow-500 transition`}
+                >
+                  ★
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Comment (optional)
+            </label>
+            <textarea
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              rows={3}
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Tell others about your experience..."
+            />
+          </div>
+
+          {error && (
+            <div className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">
+              {error}
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 bg-slate-100 text-slate-700 font-medium py-2.5 rounded-lg hover:bg-slate-200 transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg transition disabled:opacity-50"
+            >
+              {submitting ? "Submitting..." : "Submit Review"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ---------- Reviews List Modal ----------
+function ReviewsListModal({
+  business,
+  reviews,
+  onClose,
+  onLeaveReview,
+}: {
+  business: any;
+  reviews: any[];
+  onClose: () => void;
+  onLeaveReview: () => void;
+}) {
+  const businessReviews = reviews
+    .filter((r: any) => r.business_id === business.id)
+    .sort(
+      (a: any, b: any) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+
+  const reviewCount = businessReviews.length;
+  const avgRating =
+    reviewCount > 0
+      ? businessReviews.reduce((sum: number, r: any) => sum + r.rating, 0) /
+        reviewCount
+      : 0;
+
+  const formatDate = (iso: string) => {
+    const d = new Date(iso);
+    return d.toLocaleDateString("en-KE", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[85vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="p-6 border-b border-slate-200">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <h2 className="text-lg font-semibold text-slate-800">
+                Reviews for {business?.name}
+              </h2>
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-yellow-500 text-lg">
+                  {"★".repeat(Math.round(avgRating))}
+                  {"☆".repeat(5 - Math.round(avgRating))}
+                </span>
+                <span className="text-slate-700 font-medium">
+                  {avgRating.toFixed(1)}
+                </span>
+                <span className="text-slate-400 text-sm">
+                  ({reviewCount} {reviewCount === 1 ? "review" : "reviews"})
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="text-slate-400 hover:text-slate-600 text-2xl leading-none"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+
+        {/* Reviews list (scrollable) */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {reviewCount === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-slate-500 text-sm">No reviews yet.</p>
+              <p className="text-slate-400 text-xs mt-1">
+                Be the first to leave one!
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {businessReviews.map((r: any) => (
+                <div
+                  key={r.id}
+                  className="border-b border-slate-100 pb-4 last:border-0"
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-yellow-500 text-sm">
+                      {"★".repeat(r.rating)}
+                      {"☆".repeat(5 - r.rating)}
+                    </span>
+                    <span className="text-xs text-slate-400">
+                      {formatDate(r.created_at)}
+                    </span>
+                  </div>
+                  {r.comment && (
+                    <p className="text-sm text-slate-700 mb-1">
+                      {r.comment}
+                    </p>
+                  )}
+                  <p className="text-xs text-slate-500">— {r.reviewer_name}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Footer with "Leave a Review" button */}
+        <div className="p-4 border-t border-slate-200">
+          <button
+            onClick={() => {
+              onClose();
+              onLeaveReview();
+            }}
+            className="w-full bg-yellow-50 text-yellow-700 border border-yellow-200 text-sm font-medium py-2.5 rounded-lg hover:bg-yellow-100 transition"
+          >
+            ⭐ Leave a Review
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 // ---------- Property card ----------
 function PropertyCard({
@@ -614,6 +892,8 @@ export default function Home() {
    const [businesses, setBusinesses] = useState<Business[]>([]);
      const [reviews, setReviews] = useState<any[]>([]);
        const [reviewModalOpen, setReviewModalOpen] = useState(false);
+         const [selectedBusiness, setSelectedBusiness] = useState<any>(null);
+           const [reviewsListBusiness, setReviewsListBusiness] = useState<any>(null);
   const properties = selected ? propertiesForRegion(selected) : [];
 
   useEffect(() => {
@@ -653,6 +933,19 @@ export default function Home() {
     fetchBusinesses();
         fetchReviews();
   }, [selected]);
+  
+  const fetchReviewsAll = async () => {
+    const { data, error } = await supabase
+      .from("reviews")
+      .select("*");
+
+    if (error) {
+      console.error("Error fetching reviews:", error);
+      return;
+    }
+
+    setReviews(data || []);
+  };
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -973,7 +1266,11 @@ export default function Home() {
                   business={b}
                   onView360={(biz) => setFullscreenBusiness(biz)}
                             reviews={reviews}
-                                      onLeaveReview={() => setReviewModalOpen(true)}
+            onLeaveReview={(biz) => {
+            setSelectedBusiness(biz);
+            setReviewModalOpen(true);
+          }}
+                    onViewReviews={(biz) => setReviewsListBusiness(biz)}
                 />
               ))}
             </div>
@@ -1025,6 +1322,35 @@ export default function Home() {
           business={fullscreenBusiness}
           region={selected}
           onClose={() => setFullscreenBusiness(null)}
+        />
+      )}
+      
+      {/* Review Modal */}
+      {reviewModalOpen && selectedBusiness && (
+        <ReviewModal
+          business={selectedBusiness}
+          onClose={() => {
+            setReviewModalOpen(false);
+            setSelectedBusiness(null);
+          }}
+          onSubmitted={() => {
+            setReviewModalOpen(false);
+            setSelectedBusiness(null);
+                       fetchReviewsAll();
+          }}
+        />
+      )}
+      
+      {/* Reviews List Modal */}
+      {reviewsListBusiness && (
+        <ReviewsListModal
+          business={reviewsListBusiness}
+          reviews={reviews}
+          onClose={() => setReviewsListBusiness(null)}
+          onLeaveReview={() => {
+            setSelectedBusiness(reviewsListBusiness);
+            setReviewModalOpen(true);
+          }}
         />
       )}
     </main>
