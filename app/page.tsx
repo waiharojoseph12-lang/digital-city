@@ -383,10 +383,12 @@ function BusinessCard({
   business,
   onView360,
   reviews,
+        onLeaveReview,
 }: {
   business: Business;
   onView360: (business: Business) => void;
         reviews: any[];
+              onLeaveReview: (business: Business) => void;
 }) {
   const waLink = `https://wa.me/${business.phone}?text=${encodeURIComponent(
     `Hi ${business.name}, I found you on Digital Nairobi.`
@@ -480,6 +482,12 @@ function BusinessCard({
               360°
             </button>
           </div>
+                  <button
+               onClick={() => onLeaveReview(business)}
+          className="w-full mt-2 text-xs font-medium bg-yellow-50 text-yellow-700 border border-yellow-200 px-3 py-2 rounded-lg hover:bg-yellow-100 transition"
+        >
+          ⭐ Leave a Review
+        </button>
       </div>
     </div>
   );
@@ -965,6 +973,7 @@ export default function Home() {
                   business={b}
                   onView360={(biz) => setFullscreenBusiness(biz)}
                             reviews={reviews}
+                                      onLeaveReview={() => setReviewModalOpen(true)}
                 />
               ))}
             </div>
