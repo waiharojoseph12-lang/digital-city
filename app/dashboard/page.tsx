@@ -9,6 +9,8 @@ export default function DashboardPage() {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [myBusinesses, setMyBusinesses] = useState<any[]>([]);
+    const [editingBusiness, setEditingBusiness] = useState<any>(null);
+  const [deletingBusiness, setDeletingBusiness] = useState<any>(null);
 
   // Auth check
   useEffect(() => {
@@ -83,15 +85,31 @@ export default function DashboardPage() {
           ) : (
             <div className="space-y-3">
               {myBusinesses.map((b) => (
-                <div
-                  key={b.id}
-                  className="border border-slate-200 rounded-lg p-4"
-                >
-                  <h3 className="font-semibold text-slate-800">{b.name}</h3>
-                  <p className="text-xs text-slate-500">
-                    {b.category} · {b.region}
-                  </p>
-                </div>
+                      <div
+          key={b.id}
+          className="border border-slate-200 rounded-lg p-4 flex items-center justify-between gap-4"
+        >
+          <div className="flex-1">
+            <h3 className="font-semibold text-slate-800">{b.name}</h3>
+            <p className="text-xs text-slate-500">
+              {b.category} · {b.region}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setEditingBusiness(b)}
+              className="text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition"
+            >
+              ✏️ Edit
+            </button>
+            <button
+              onClick={() => setDeletingBusiness(b)}
+              className="text-xs font-medium bg-red-50 text-red-700 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-100 transition"
+            >
+              🗑️ Delete
+            </button>
+          </div>
+        </div> 
               ))}
             </div>
           )}
