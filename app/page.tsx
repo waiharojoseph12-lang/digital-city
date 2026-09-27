@@ -21,10 +21,12 @@ type Business = {
   name: string;
   category: string;
   region: string;
-  phone: string; // WhatsApp number, format: 254XXXXXXXXX
+  phone: string;
   image: string;
   tagline: string;
-    services?: string[];
+  services?: string[];
+  panorama_url?: string | null;
+  photos?: { id: string; url: string; sort_order: number }[];
 };
 type Property = {
   id: string;
@@ -181,7 +183,13 @@ const videoForRegion = (name: string) =>
 type Tab = "map" | "360" | "video";
 
 // ---------- Pannellum viewer wrapper ----------
-function Panorama360({ region }: { region: string }) {
+function Panorama360({
+  region,
+  panoramaUrl,
+}: {
+  region: string;
+  panoramaUrl?: string | null;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<any>(null);
 
@@ -207,7 +215,7 @@ function Panorama360({ region }: { region: string }) {
       try {
         viewerRef.current = win.pannellum.viewer(containerRef.current, {
           type: "equirectangular",
-          panorama: panoramaForRegion(region),
+          panorama: panoramaUrl || panoramaForRegion(region),
           autoLoad: true,
           autoRotate: -2,
           showControls: true,
@@ -248,11 +256,9 @@ function Panorama360({ region }: { region: string }) {
 // ---------- Fullscreen 360° overlay ----------
 function Fullscreen360({
   business,
-  region,
   onClose,
 }: {
   business: Business;
-  region: string;
   onClose: () => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -286,7 +292,7 @@ function Fullscreen360({
       try {
         viewerRef.current = win.pannellum.viewer(containerRef.current, {
           type: "equirectangular",
-          panorama: panoramaForRegion(region),
+          panorama: business.panorama_url || panoramaForRegion(business.region),
           autoLoad: true,
           autoRotate: -1.5,
           showControls: true,
@@ -310,7 +316,7 @@ function Fullscreen360({
         viewerRef.current = null;
       }
     };
-  }, [region, onClose]);
+  }, [business.panorama_url, business.region, onClose]);
 
   const waLink = `https://wa.me/${business.phone}?text=${encodeURIComponent(
     `Hi ${business.name}, I found you on Digital Nairobi.`
@@ -329,7 +335,7 @@ function Fullscreen360({
             ← Back to map
           </button>
           <div className="bg-black/60 text-white text-sm px-3 py-2 rounded-full backdrop-blur">
-            {region}
+         {business.region}
           </div>
         </div>
         <button
@@ -410,18 +416,24 @@ function BusinessCard({
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition group">
       <div className="relative aspect-[4/3] bg-slate-100 overflow-hidden">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-               {business.image ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={business.image}
-            alt={business.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
-          />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center text-5xl">
-            🏪
-          </div>
-        )}
+          {(() => {
+  const coverImage =
+    business.photos && business.photos.length > 0
+      ? business.photos[0].url
+      : business.image;
+  return coverImage ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={coverImage}
+      alt={business.name}
+      className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+    />
+  ) : (
+    <div className="w-full h-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center text-5xl">
+      🏪
+    </div>
+  );
+})()}
         <span className="absolute top-2 left-2 bg-white/95 text-slate-700 text-xs font-medium px-2 py-1 rounded-full">
           {business.category}
         </span>
@@ -907,7 +919,7 @@ export default function Home() {
         .from("businesses")
         .select("*")
         .eq("region", selected)
-        .eq("is_paid", true)
+        .eq("is_paid", true);
 
       if (error) {
         console.error("Error fetching businesses:", error);
@@ -915,7 +927,29 @@ export default function Home() {
         return;
       }
 
-      setBusinesses((data as Business[]) || []);
+      const bizList = (data as Business[]) || [];
+
+      // If there are businesses, fetch their photos in a single query
+      if (bizList.length > 0) {
+        const bizIds = bizList.map((b) => b.id);
+        const { data: photoData, error: photoError } = await supabase
+          .from("photos")
+          .select("*")
+          .in("business_id", bizIds)
+          .order("sort_order", { ascending: true });
+
+        if (photoError) {
+          console.error("Error fetching photos:", photoError);
+        } else if (photoData) {
+          bizList.forEach((b) => {
+            b.photos = (photoData as any[]).filter(
+              (p) => p.business_id === b.id
+            );
+          });
+        }
+      }
+
+      setBusinesses(bizList);
     };
           const fetchReviews = async () => {
         const { data, error } = await supabase
@@ -1159,7 +1193,10 @@ export default function Home() {
               <div>
                 {selected ? (
                   <>
-                    <Panorama360 region={selected} />
+                <Panorama360
+  region={selected}
+  panoramaUrl={businesses.find((b) => b.panorama_url)?.panorama_url}
+/>
                     <p className="text-xs text-slate-400 mt-3">
                       Sample 360° panorama — will be replaced with real {selected} footage.
                     </p>
@@ -1320,7 +1357,6 @@ export default function Home() {
       {fullscreenBusiness && selected && (
         <Fullscreen360
           business={fullscreenBusiness}
-          region={selected}
           onClose={() => setFullscreenBusiness(null)}
         />
       )}
