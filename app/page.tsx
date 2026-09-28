@@ -31,16 +31,21 @@ type Business = {
 type Property = {
   id: string;
   name: string;
-  listingType: "Rent" | "Sale";
-  propertyType: string;
+  listing_type: "Rent" | "Sale";
+  property_type: string;
   region: string;
   phone: string;
-  image: string;
   tagline: string;
+  description?: string | null;
   price: number;
-  priceUnit: "month" | "total";
-  bedrooms: number;
-  bathrooms: number;
+  price_unit: "month" | "total";
+  bedrooms?: number | null;
+  bathrooms?: number | null;
+  image: string | null;
+  status: string;
+  owner_id?: string | null;
+  photos?: { id: string; url: string; sort_order: number }[];
+  panoramas?: { id: string; room_name: string; url: string; sort_order: number }[];
 };
 
 const CATEGORIES = [
@@ -95,60 +100,6 @@ const businessesForRegion = (region: string): Business[] => {
       phone: "254712345678",
       image,
       tagline: taglines[h % taglines.length],
-    });
-  }
-
-  return result;
-};
-// Sample property cover images
-const PROPERTY_IMAGES = [
-  "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&auto=format&fit=crop",
-];
-
-// Generate 2–4 fake properties per region, deterministically
-const propertiesForRegion = (region: string): Property[] => {
-  const count = 2 + (hashOf(region + "-props") % 3); // 2 to 4
-  const result: Property[] = [];
-  const types = ["Apartment", "House", "Townhouse", "Office"];
-  const taglines = [
-    "Modern finishes · Ready to move in",
-    "Prime location · Secure compound",
-    "Recently renovated · Ample parking",
-    "Great views · Backup generator",
-    "Furnished · Serviced",
-    "Family-friendly neighborhood",
-  ];
-
-  for (let i = 0; i < count; i++) {
-    const key = `${region}-prop-${i}`;
-    const h = hashOf(key);
-    const listingType: "Rent" | "Sale" = h % 2 === 0 ? "Rent" : "Sale";
-    const propertyType = types[h % types.length];
-    const bedrooms = 1 + (h % 4);
-    const bathrooms = 1 + (h % 3);
-    const price =
-      listingType === "Rent"
-        ? 30000 + (h % 16) * 10000
-        : 6000000 + (h % 40) * 1000000;
-
-    result.push({
-      id: key,
-      name: `${bedrooms}-Bedroom ${propertyType} in ${region}`,
-      listingType,
-      propertyType,
-      region,
-      phone: "254712345678",
-      image: PROPERTY_IMAGES[h % PROPERTY_IMAGES.length],
-      tagline: taglines[h % taglines.length],
-      price,
-      priceUnit: listingType === "Rent" ? "month" : "total",
-      bedrooms,
-      bathrooms,
     });
   }
 
@@ -782,83 +733,307 @@ function ReviewsListModal({
   );
 }
 
-
 // ---------- Property card ----------
 function PropertyCard({
   property,
   onView360,
+  onClick,
 }: {
   property: Property;
   onView360: () => void;
+  onClick: () => void;
 }) {
   const waLink = `https://wa.me/${property.phone}?text=${encodeURIComponent(
     `Hi, I'm interested in "${property.name}" listed on Digital Nairobi.`
   )}`;
 
-  // Format price: 45000 → "KES 45,000" ; 12000000 → "KES 12,000,000"
   const formattedPrice = property.price.toLocaleString("en-KE");
 
+  // Cover image: first property_photos image if any, else property.image, else null
+  const coverImage =
+    property.photos && property.photos.length > 0
+      ? property.photos[0].url
+      : property.image;
+
+  // Show bed/bath only for residential types where they make sense
+  const showSpecs =
+    property.bedrooms != null && property.bathrooms != null;
+
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition group">
+    <div
+      onClick={onClick}
+      className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-lg transition group cursor-pointer"
+    >
+      {/* Photo + badges + price */}
       <div className="relative aspect-[4/3] bg-slate-100 overflow-hidden">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={property.image}
-          alt={property.name}
-          className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
-        />
+        {coverImage ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={coverImage}
+            alt={property.name}
+            className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center text-5xl">
+            🏠
+          </div>
+        )}
+
+        {/* For Rent / For Sale badge — top-left */}
         <span
-          className={`absolute top-2 left-2 text-xs font-semibold px-2 py-1 rounded-full ${
-            property.listingType === "Rent"
+          className={`absolute top-3 left-3 text-xs font-semibold px-2.5 py-1 rounded-full shadow-sm ${
+            property.listing_type === "Rent"
               ? "bg-green-500 text-white"
               : "bg-blue-600 text-white"
           }`}
         >
-          For {property.listingType}
+          For {property.listing_type}
         </span>
-        <span className="absolute top-2 right-2 bg-white/95 text-slate-700 text-xs font-medium px-2 py-1 rounded-full">
-          {property.propertyType}
-        </span>
-      </div>
-      <div className="p-4">
-        <h3 className="font-semibold text-slate-800 text-sm leading-tight mb-1">
-          {property.name}
-        </h3>
-        <p className="text-xs text-slate-500 mb-3">{property.tagline}</p>
 
-        {/* Price + specs row */}
-        <div className="flex items-center justify-between mb-3 pb-3 border-b border-slate-100">
-          <div className="text-base font-bold text-slate-900">
-            KES {formattedPrice}
-            {property.priceUnit === "month" && (
-              <span className="text-xs font-normal text-slate-500">/mo</span>
-            )}
-          </div>
-          <div className="flex items-center gap-3 text-xs text-slate-600">
-            <span className="flex items-center gap-1">
-              🛏️ {property.bedrooms}
-            </span>
-            <span className="flex items-center gap-1">
-              🚿 {property.bathrooms}
-            </span>
-          </div>
+        {/* Heart icon — top-right (visual only for now) */}
+        <button
+          type="button"
+          onClick={(e) => e.stopPropagation()}
+          className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 hover:bg-white flex items-center justify-center text-slate-600 shadow-sm transition"
+          aria-label="Save property"
+        >
+          ♡
+        </button>
+
+        {/* Price — bottom-left overlay */}
+        <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur text-white px-3 py-1.5 rounded-lg text-sm font-semibold">
+          KES {formattedPrice}
+          {property.price_unit === "month" && (
+            <span className="text-xs font-normal opacity-80">/mo</span>
+          )}
         </div>
 
+        {/* Property type — bottom-right */}
+        <span className="absolute bottom-3 right-3 bg-white/95 text-slate-700 text-xs font-medium px-2 py-1 rounded-full">
+          {property.property_type}
+        </span>
+      </div>
+
+      {/* Info block */}
+      <div className="p-4">
+        <h3 className="font-semibold text-slate-800 text-sm leading-tight mb-1 line-clamp-1">
+          {property.name}
+        </h3>
+        <p className="text-xs text-slate-500 mb-3">
+          {property.region} · Kenya
+        </p>
+
+        {/* Specs row — only for residential */}
+        {showSpecs && (
+          <div className="flex items-center gap-3 text-xs text-slate-600 mb-3 pb-3 border-b border-slate-100">
+            <span className="flex items-center gap-1">
+              🛏️ {property.bedrooms} Bed
+            </span>
+            <span className="flex items-center gap-1">
+              🚿 {property.bathrooms} Bath
+            </span>
+          </div>
+        )}
+
+        {/* CTAs */}
         <div className="flex gap-2">
           <a
             href={waLink}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
             className="flex-1 text-center text-xs font-medium bg-green-500 text-white px-3 py-2 rounded-lg hover:bg-green-600 transition"
           >
             WhatsApp
           </a>
           <button
-            onClick={onView360}
+            onClick={(e) => {
+              e.stopPropagation();
+              onView360();
+            }}
             className="flex-1 text-xs font-medium bg-slate-100 text-slate-700 px-3 py-2 rounded-lg hover:bg-slate-200 transition"
           >
             View 360°
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------- Property Detail Modal ----------
+function PropertyDetailModal({
+  property,
+  onClose,
+}: {
+  property: Property;
+  onClose: () => void;
+}) {
+  const waLink = `https://wa.me/${property.phone}?text=${encodeURIComponent(
+    `Hi, I'm interested in "${property.name}" listed on Digital Nairobi.`
+  )}`;
+
+  const formattedPrice = property.price.toLocaleString("en-KE");
+
+  const coverImage =
+    property.photos && property.photos.length > 0
+      ? property.photos[0].url
+      : property.image;
+
+  const showSpecs =
+    property.bedrooms != null && property.bathrooms != null;
+
+  const allPhotos =
+    property.photos && property.photos.length > 0
+      ? property.photos.map((p) => p.url)
+      : property.image
+        ? [property.image]
+        : [];
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4 overflow-y-auto"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full my-8 max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header with close button */}
+        <div className="sticky top-0 bg-white border-b border-slate-200 p-4 flex items-center justify-between z-10">
+          <div className="flex items-center gap-3">
+            <span
+              className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                property.listing_type === "Rent"
+                  ? "bg-green-100 text-green-700"
+                  : "bg-blue-100 text-blue-700"
+              }`}
+            >
+              For {property.listing_type}
+            </span>
+            <span className="text-xs font-medium bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full">
+              {property.property_type}
+            </span>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-700 text-2xl leading-none w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 transition"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Cover image */}
+        <div className="relative aspect-[16/9] bg-slate-100">
+          {coverImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={coverImage}
+              alt={property.name}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-6xl bg-gradient-to-br from-blue-100 to-purple-100">
+              🏠
+            </div>
+          )}
+        </div>
+
+        {/* Content */}
+        <div className="p-6">
+          <h2 className="text-2xl font-bold text-slate-900 mb-1">
+            {property.name}
+          </h2>
+          <p className="text-sm text-slate-500 mb-4">
+            {property.region} · Kenya
+          </p>
+
+          {/* Price */}
+          <div className="text-2xl font-bold text-slate-900 mb-4">
+            KES {formattedPrice}
+            {property.price_unit === "month" && (
+              <span className="text-sm font-normal text-slate-500">/month</span>
+            )}
+          </div>
+
+          {/* Specs row */}
+          {showSpecs && (
+            <div className="flex items-center gap-6 text-sm text-slate-700 mb-6 pb-6 border-b border-slate-200">
+              <span className="flex items-center gap-2">
+                🛏️ <span className="font-medium">{property.bedrooms}</span> Bed
+              </span>
+              <span className="flex items-center gap-2">
+                🚿 <span className="font-medium">{property.bathrooms}</span> Bath
+              </span>
+            </div>
+          )}
+
+          {/* Tagline */}
+          {property.tagline && (
+            <p className="text-sm font-medium text-slate-700 mb-4">
+              {property.tagline}
+            </p>
+          )}
+
+          {/* Description */}
+          {property.description && (
+            <div className="mb-6">
+              <h3 className="text-sm font-semibold text-slate-800 mb-2">
+                About this property
+              </h3>
+              <p className="text-sm text-slate-600 leading-relaxed">
+                {property.description}
+              </p>
+            </div>
+          )}
+
+          {/* Photo gallery */}
+          {allPhotos.length > 1 && (
+            <div className="mb-6">
+              <h3 className="text-sm font-semibold text-slate-800 mb-3">
+                Photos
+              </h3>
+              <div className="grid grid-cols-3 gap-2">
+                {allPhotos.map((url, i) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={i}
+                    src={url}
+                    alt={`${property.name} photo ${i + 1}`}
+                    className="w-full aspect-square object-cover rounded-lg border border-slate-200"
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 360° tour button */}
+          {property.panoramas && property.panoramas.length > 0 && (
+            <button
+              className="w-full mb-4 bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium py-3 rounded-lg hover:bg-emerald-100 transition"
+            >
+              🌐 View 360° Tour ({property.panoramas.length} rooms)
+            </button>
+          )}
+
+          {/* CTAs */}
+          <div className="flex gap-3 pt-4 border-t border-slate-200">
+            <a
+              href={waLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 text-center bg-green-500 hover:bg-green-600 text-white font-semibold py-3 rounded-lg transition"
+            >
+              WhatsApp
+            </a>
+            <a
+              href={`tel:+${property.phone}`}
+              className="flex-1 text-center bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition"
+            >
+              📞 Call
+            </a>
+          </div>
         </div>
       </div>
     </div>
@@ -906,9 +1081,11 @@ export default function Home() {
        const [reviewModalOpen, setReviewModalOpen] = useState(false);
          const [selectedBusiness, setSelectedBusiness] = useState<any>(null);
            const [reviewsListBusiness, setReviewsListBusiness] = useState<any>(null);
-  const properties = selected ? propertiesForRegion(selected) : [];
+    const [properties, setProperties] = useState<Property[]>([]);
+  const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
 
   useEffect(() => {
+       
     if (!selected) {
       setBusinesses([]);
       return;
@@ -965,6 +1142,44 @@ export default function Home() {
       };
 
     fetchBusinesses();
+      // Fetch properties for the selected region
+      (async () => {
+        const { data: propData, error: propError } = await supabase
+          .from("properties")
+          .select("*")
+          .eq("region", selected)
+          .eq("is_paid", true)
+          .eq("status", "approved");
+
+        if (propError) {
+          console.error("Error fetching properties:", propError);
+          setProperties([]);
+          return;
+        }
+
+        const propList = (propData as Property[]) || [];
+
+        if (propList.length > 0) {
+          const propIds = propList.map((p) => p.id);
+          const { data: photoData, error: photoError } = await supabase
+            .from("property_photos")
+            .select("*")
+            .in("property_id", propIds)
+            .order("sort_order", { ascending: true });
+
+          if (photoError) {
+            console.error("Error fetching property photos:", photoError);
+          } else if (photoData) {
+            propList.forEach((p) => {
+              p.photos = (photoData as any[]).filter(
+                (ph) => ph.property_id === p.id
+              );
+            });
+          }
+        }
+
+        setProperties(propList);
+      })();
         fetchReviews();
   }, [selected]);
   
@@ -1315,25 +1530,14 @@ export default function Home() {
 
           {contentTab === "properties" && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {properties.map((p) => (
-                <PropertyCard
-                  key={p.id}
-                  property={p}
-                           onView360={() =>
-                setFullscreenBusiness({
-                  id: p.id,
-                  name: p.name,
-                  category: `For ${p.listingType} · ${p.propertyType}`,
-                  region: p.region,
-                  phone: p.phone,
-                  image: p.image,
-                  tagline: `${p.tagline} · KES ${p.price.toLocaleString("en-KE")}${
-                    p.priceUnit === "month" ? "/mo" : ""
-                  }`,
-                })
-              }
-                />
-              ))}
+                         {properties.map((p) => (
+              <PropertyCard
+                key={p.id}
+                property={p}
+                onClick={() => setSelectedProperty(p)}
+                onView360={() => setSelectedProperty(p)}
+              />
+            ))}
             </div>
           )}
         </div>
@@ -1387,6 +1591,14 @@ export default function Home() {
             setSelectedBusiness(reviewsListBusiness);
             setReviewModalOpen(true);
           }}
+               />
+      )}
+
+      {/* Property Detail Modal */}
+      {selectedProperty && (
+        <PropertyDetailModal
+          property={selectedProperty}
+          onClose={() => setSelectedProperty(null)}
         />
       )}
     </main>
