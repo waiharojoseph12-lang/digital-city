@@ -27,6 +27,7 @@ type Business = {
   services?: string[];
   panorama_url?: string | null;
   photos?: { id: string; url: string; sort_order: number }[];
+    panoramas?: { id: string; room_name: string; url: string; sort_order: number }[];
 };
 type Property = {
   id: string;
@@ -214,6 +215,13 @@ function Fullscreen360({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<any>(null);
+    const [roomIndex, setRoomIndex] = useState(0);
+
+  const rooms =
+    business.panoramas && business.panoramas.length > 0
+      ? business.panoramas
+      : null;
+        
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
@@ -243,7 +251,9 @@ function Fullscreen360({
       try {
         viewerRef.current = win.pannellum.viewer(containerRef.current, {
           type: "equirectangular",
-          panorama: business.panorama_url || panoramaForRegion(business.region),
+        panorama: rooms
+  ? rooms[roomIndex].url
+  : business.panorama_url || panoramaForRegion(business.region),
           autoLoad: true,
           autoRotate: -1.5,
           showControls: true,
@@ -267,7 +277,7 @@ function Fullscreen360({
         viewerRef.current = null;
       }
     };
-  }, [business.panorama_url, business.region, onClose]);
+    }, [business.panorama_url, business.region, onClose, roomIndex, rooms]);
 
   const waLink = `https://wa.me/${business.phone}?text=${encodeURIComponent(
     `Hi ${business.name}, I found you on Digital Nairobi.`
@@ -309,6 +319,25 @@ function Fullscreen360({
             </h2>
             <p className="text-sm text-white/80 mt-1">{business.tagline}</p>
           </div>
+          
+        {/* Room switcher — only if multi-room panoramas exist */}
+        {rooms && rooms.length > 1 && (
+          <div className="flex flex-wrap gap-2 mb-4">
+            {rooms.map((room, idx) => (
+              <button
+                key={room.id}
+                onClick={() => setRoomIndex(idx)}
+                className={`text-xs font-medium px-3 py-1.5 rounded-full transition backdrop-blur ${
+                  idx === roomIndex
+                    ? "bg-white text-slate-900"
+                    : "bg-white/10 hover:bg-white/20 text-white"
+                }`}
+              >
+                {room.room_name}
+              </button>
+            ))}
+          </div>
+        )}
           <div className="flex gap-2">
             <a
               href={waLink}
@@ -1090,7 +1119,8 @@ export default function Home() {
       setBusinesses([]);
       return;
     }
-
+    
+    let cancelled = false;
     const fetchBusinesses = async () => {
       const { data, error } = await supabase
         .from("businesses")
@@ -1124,10 +1154,30 @@ export default function Home() {
             );
           });
         }
+        
+    // Fetch panoramas for these businesses
+    const { data: panoData, error: panoError } = await supabase
+      .from("business_panoramas")
+      .select("*")
+      .in("business_id", bizIds)
+      .order("sort_order", { ascending: true });
+
+    if (panoError) {
+      console.error("Error fetching panoramas:", panoError);
+    } else if (panoData) {
+
+      bizList.forEach((b) => {
+        b.panoramas = (panoData as any[]).filter(
+          (p) => p.business_id === b.id
+        );
+    
+      });
+    }
       }
 
-      setBusinesses(bizList);
+          if (!cancelled) setBusinesses(bizList);
     };
+      
           const fetchReviews = async () => {
         const { data, error } = await supabase
           .from("reviews")
@@ -1181,7 +1231,10 @@ export default function Home() {
         setProperties(propList);
       })();
         fetchReviews();
-  }, [selected]);
+     return () => {
+      cancelled = true;
+    };
+      }, [selected]);
   
   const fetchReviewsAll = async () => {
     const { data, error } = await supabase
@@ -1516,13 +1569,15 @@ export default function Home() {
                 <BusinessCard
                   key={b.id}
                   business={b}
-                  onView360={(biz) => setFullscreenBusiness(biz)}
+                            onView360={(biz) => {
+            setFullscreenBusiness(biz);
+          }}
                             reviews={reviews}
             onLeaveReview={(biz) => {
             setSelectedBusiness(biz);
             setReviewModalOpen(true);
           }}
-                    onViewReviews={(biz) => setReviewsListBusiness(biz)}
+          onViewReviews={(biz) => setReviewsListBusiness(biz)}
                 />
               ))}
             </div>
