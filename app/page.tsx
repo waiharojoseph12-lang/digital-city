@@ -368,12 +368,14 @@ function Fullscreen360({
 function BusinessCard({
   business,
   onView360,
+      onClick,
   reviews,
         onLeaveReview,
               onViewReviews,
 }: {
   business: Business;
   onView360: (business: Business) => void;
+      onClick: (business: Business) => void;
         reviews: any[];
               onLeaveReview: (business: Business) => void;
                     onViewReviews: (business: Business) => void;
@@ -393,7 +395,7 @@ function BusinessCard({
       : 0;
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition group">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition group" onClick={() => onClick(business)}>
       <div className="relative aspect-[4/3] bg-slate-100 overflow-hidden">
         {/* eslint-disable-next-line @next/next/no-img-element */}
           {(() => {
@@ -474,7 +476,7 @@ function BusinessCard({
               WhatsApp
             </a>
             <button
-              onClick={() => onView360(business)}
+                          onClick={(e) => { e.stopPropagation(); onView360(business); }}
               className="text-xs font-medium bg-slate-100 text-slate-700 px-2 py-2 rounded-lg hover:bg-slate-200 transition"
             >
               360°
@@ -488,6 +490,238 @@ function BusinessCard({
         </button>
       </div>
     </div>
+  );
+}
+
+
+// ---------- Business Detail Modal ----------
+function BusinessDetailModal({
+  business,
+  onClose,
+}: {
+  business: Business;
+  onClose: () => void;
+}) {
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+
+  const waLink = `https://wa.me/${business.phone}?text=${encodeURIComponent(
+    `Hi ${business.name}, I found you on Digital Nairobi.`
+  )}`;
+
+  const coverImage =
+    business.photos && business.photos.length > 0
+      ? business.photos[0].url
+      : business.image;
+
+  const allPhotos =
+    business.photos && business.photos.length > 0
+      ? business.photos.map((p) => p.url)
+      : coverImage
+        ? [coverImage]
+        : [];
+
+  const openLightbox = (idx: number) => setLightboxIndex(idx);
+  const closeLightbox = () => setLightboxIndex(null);
+
+  const prevPhoto = () => {
+    if (lightboxIndex === null || allPhotos.length === 0) return;
+    setLightboxIndex(
+      lightboxIndex === 0 ? allPhotos.length - 1 : lightboxIndex - 1
+    );
+  };
+
+  const nextPhoto = () => {
+    if (lightboxIndex === null || allPhotos.length === 0) return;
+    setLightboxIndex(
+      lightboxIndex === allPhotos.length - 1 ? 0 : lightboxIndex + 1
+    );
+  };
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (lightboxIndex !== null) closeLightbox();
+        else onClose();
+      }
+      if (e.key === "ArrowLeft" && lightboxIndex !== null) prevPhoto();
+      if (e.key === "ArrowRight" && lightboxIndex !== null) nextPhoto();
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [lightboxIndex, allPhotos.length]);
+
+  return (
+    <>
+      <div
+        className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4 overflow-y-auto"
+        onClick={onClose}
+      >
+        <div
+          className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full my-8 max-h-[90vh] overflow-y-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="sticky top-0 bg-white border-b border-slate-200 p-4 flex items-center justify-between z-10">
+            <span className="text-xs font-semibold bg-slate-100 text-slate-700 px-3 py-1 rounded-full">
+              {business.category}
+            </span>
+            <button
+              onClick={onClose}
+              className="text-slate-400 hover:text-slate-700 text-2xl leading-none w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 transition"
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+
+          {/* Cover photo */}
+          <div className="relative aspect-[16/9] bg-slate-100">
+            {coverImage ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={coverImage}
+                alt={business.name}
+                className="w-full h-full object-cover cursor-pointer"
+                onClick={() => openLightbox(0)}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-6xl bg-gradient-to-br from-blue-100 to-purple-100">
+                🏪
+              </div>
+            )}
+          </div>
+
+          {/* Content */}
+          <div className="p-6">
+            <h2 className="text-2xl font-bold text-slate-900 mb-1">
+              {business.name}
+            </h2>
+            <p className="text-sm text-slate-500 mb-4">
+              {business.region} · Kenya
+            </p>
+
+            {business.tagline && (
+              <p className="text-sm font-medium text-slate-700 mb-4">
+                {business.tagline}
+              </p>
+            )}
+
+            {/* Services chips */}
+            {business.services && business.services.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                  Services
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {business.services.map((service, idx) => (
+                    <span
+                      key={idx}
+                      className="text-xs bg-slate-100 text-slate-700 px-3 py-1 rounded-full"
+                    >
+                      {service}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Photo gallery */}
+            {allPhotos.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                  Photos ({allPhotos.length})
+                </h3>
+                <div className="grid grid-cols-3 gap-2">
+                  {allPhotos.map((url, i) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      key={i}
+                      src={url}
+                      alt={`${business.name} photo ${i + 1}`}
+                      className="w-full aspect-square object-cover rounded-lg border border-slate-200 cursor-pointer hover:opacity-80 transition"
+                      onClick={() => openLightbox(i)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* CTAs */}
+            <div className="flex gap-3 pt-4 border-t border-slate-200">
+              <a
+                href={waLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 text-center bg-green-500 hover:bg-green-600 text-white font-semibold py-3 rounded-lg transition"
+              >
+                WhatsApp
+              </a>
+              <a
+                href={`tel:+${business.phone}`}
+                className="flex-1 text-center bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition"
+              >
+                📞 Call
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Fullscreen lightbox */}
+      {lightboxIndex !== null && allPhotos[lightboxIndex] && (
+        <div
+          className="fixed inset-0 z-[60] bg-black/95 flex items-center justify-center"
+          onClick={closeLightbox}
+        >
+          {/* Prev */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              prevPhoto();
+            }}
+            className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white text-2xl w-12 h-12 rounded-full backdrop-blur transition flex items-center justify-center"
+            aria-label="Previous photo"
+          >
+            ←
+          </button>
+
+          {/* Image */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={allPhotos[lightboxIndex]}
+            alt={`${business.name} photo ${lightboxIndex + 1}`}
+            className="max-w-[90vw] max-h-[90vh] object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+
+          {/* Next */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              nextPhoto();
+            }}
+            className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white text-2xl w-12 h-12 rounded-full backdrop-blur transition flex items-center justify-center"
+            aria-label="Next photo"
+          >
+            →
+          </button>
+
+          {/* Close */}
+          <button
+            onClick={closeLightbox}
+            className="absolute top-4 right-4 bg-white/10 hover:bg-white/20 text-white text-2xl w-12 h-12 rounded-full backdrop-blur transition flex items-center justify-center"
+            aria-label="Close lightbox"
+          >
+            ×
+          </button>
+
+          {/* Counter */}
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 text-white text-sm px-4 py-2 rounded-full backdrop-blur">
+            {lightboxIndex + 1} / {allPhotos.length}
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -1112,6 +1346,7 @@ export default function Home() {
            const [reviewsListBusiness, setReviewsListBusiness] = useState<any>(null);
     const [properties, setProperties] = useState<Property[]>([]);
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
+    const [selectedBusinessDetail, setSelectedBusinessDetail] = useState<Business | null>(null);
 
   useEffect(() => {
        
@@ -1572,6 +1807,7 @@ export default function Home() {
                             onView360={(biz) => {
             setFullscreenBusiness(biz);
           }}
+                    onClick={(biz) => setSelectedBusinessDetail(biz)}
                             reviews={reviews}
             onLeaveReview={(biz) => {
             setSelectedBusiness(biz);
@@ -1654,6 +1890,15 @@ export default function Home() {
         <PropertyDetailModal
           property={selectedProperty}
           onClose={() => setSelectedProperty(null)}
+        />
+      )}
+
+      
+      {/* Business Detail Modal */}
+      {selectedBusinessDetail && (
+        <BusinessDetailModal
+          business={selectedBusinessDetail}
+          onClose={() => setSelectedBusinessDetail(null)}
         />
       )}
     </main>
