@@ -492,6 +492,169 @@ function BusinessCard({
     </div>
   );
 }
+// ---------- Property 360 Viewer ----------
+function Property360Viewer({
+  property,
+  onClose,
+}: {
+  property: Property;
+  onClose: () => void;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const viewerRef = useRef<any>(null);
+  const [roomIndex, setRoomIndex] = useState(0);
+
+  const rooms =
+    property.panoramas && property.panoramas.length > 0
+      ? property.panoramas
+      : null;
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKey);
+
+    let cancelled = false;
+
+    const init = () => {
+      if (cancelled || !containerRef.current) return;
+      const win = window as any;
+      if (!win.pannellum) {
+        setTimeout(init, 200);
+        return;
+      }
+
+      if (viewerRef.current) {
+        try {
+          viewerRef.current.destroy();
+        } catch {}
+        viewerRef.current = null;
+      }
+
+      if (!rooms) return;
+
+      try {
+        viewerRef.current = win.pannellum.viewer(containerRef.current, {
+          type: "equirectangular",
+          panorama: rooms[roomIndex].url,
+          autoLoad: true,
+          autoRotate: -1.5,
+          showControls: true,
+          compass: false,
+        });
+      } catch (err) {
+        console.error("Pannellum property 360 init error:", err);
+      }
+    };
+
+    init();
+
+    return () => {
+      cancelled = true;
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", handleKey);
+      if (viewerRef.current) {
+        try {
+          viewerRef.current.destroy();
+        } catch {}
+        viewerRef.current = null;
+      }
+    };
+  }, [roomIndex, rooms, onClose]);
+
+  const waLink = `https://wa.me/${property.phone}?text=${encodeURIComponent(
+    `Hi, I'm interested in "${property.name}" listed on Digital Nairobi.`
+  )}`;
+
+  if (!rooms) {
+    return null;
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black">
+      <div ref={containerRef} className="absolute inset-0" />
+
+      {/* Top bar */}
+      <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between pointer-events-none">
+        <div className="flex items-center gap-3 pointer-events-auto">
+          <button
+            onClick={onClose}
+            className="bg-black/60 hover:bg-black/80 text-white text-sm px-4 py-2 rounded-full backdrop-blur transition"
+          >
+            ← Back
+          </button>
+          <div className="bg-black/60 text-white text-sm px-3 py-2 rounded-full backdrop-blur">
+            {property.region}
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          aria-label="Close fullscreen"
+          className="pointer-events-auto bg-black/60 hover:bg-black/80 text-white text-2xl leading-none w-11 h-11 rounded-full backdrop-blur transition flex items-center justify-center"
+        >
+          ×
+        </button>
+      </div>
+
+      {/* Bottom bar */}
+      <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/90 via-black/60 to-transparent">
+        <div className="flex items-end justify-between gap-4 flex-wrap mb-4">
+          <div className="text-white max-w-xl">
+            <span className="inline-block text-xs font-medium bg-white/20 px-2 py-1 rounded-full mb-2">
+              {property.property_type}
+            </span>
+            <h2 className="text-2xl md:text-3xl font-bold leading-tight">
+              {property.name}
+            </h2>
+            <p className="text-sm text-white/80 mt-1">{property.tagline}</p>
+          </div>
+          <div className="flex gap-2">
+            <a
+              href={waLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-green-500 hover:bg-green-600 text-white font-semibold text-sm px-5 py-3 rounded-full transition"
+            >
+              WhatsApp
+            </a>
+            <a
+              href={`tel:+${property.phone}`}
+              className="bg-white/10 hover:bg-white/20 text-white font-semibold text-sm px-5 py-3 rounded-full backdrop-blur transition"
+            >
+              Call
+            </a>
+          </div>
+        </div>
+
+        {/* Room switcher */}
+        {rooms.length > 1 && (
+          <div className="flex flex-wrap gap-2 mb-3">
+            {rooms.map((room, idx) => (
+              <button
+                key={room.id}
+                onClick={() => setRoomIndex(idx)}
+                className={`text-xs font-medium px-3 py-1.5 rounded-full transition backdrop-blur ${
+                  idx === roomIndex
+                    ? "bg-white text-slate-900"
+                    : "bg-white/10 hover:bg-white/20 text-white"
+                }`}
+              >
+                {room.room_name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <p className="text-white/50 text-xs">
+          Drag to look around · Scroll to zoom · Press Esc to close
+        </p>
+      </div>
+    </div>
+  );
+}
 
 
 // ---------- Business Detail Modal ----------
@@ -1128,9 +1291,11 @@ function PropertyCard({
 function PropertyDetailModal({
   property,
   onClose,
+    onView360,
 }: {
   property: Property;
   onClose: () => void;
+    onView360: () => void;
 }) {
   const waLink = `https://wa.me/${property.phone}?text=${encodeURIComponent(
     `Hi, I'm interested in "${property.name}" listed on Digital Nairobi.`
@@ -1274,6 +1439,7 @@ function PropertyDetailModal({
           {/* 360° tour button */}
           {property.panoramas && property.panoramas.length > 0 && (
             <button
+                    onClick={onView360}
               className="w-full mb-4 bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium py-3 rounded-lg hover:bg-emerald-100 transition"
             >
               🌐 View 360° Tour ({property.panoramas.length} rooms)
@@ -1346,6 +1512,7 @@ export default function Home() {
            const [reviewsListBusiness, setReviewsListBusiness] = useState<any>(null);
     const [properties, setProperties] = useState<Property[]>([]);
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
+    const [selectedProperty360, setSelectedProperty360] = useState<Property | null>(null);
     const [selectedBusinessDetail, setSelectedBusinessDetail] = useState<Business | null>(null);
 
   useEffect(() => {
@@ -1461,6 +1628,23 @@ export default function Home() {
               );
             });
           }
+          
+      // Fetch panoramas for these properties
+      const { data: propPanoData, error: propPanoError } = await supabase
+        .from("property_panoramas")
+        .select("*")
+        .in("property_id", propIds)
+        .order("sort_order", { ascending: true });
+
+      if (propPanoError) {
+        console.error("Error fetching property panoramas:", propPanoError);
+      } else if (propPanoData) {
+        propList.forEach((p) => {
+          p.panoramas = (propPanoData as any[]).filter(
+            (pp) => pp.property_id === p.id
+          );
+        });
+      }
         }
 
         setProperties(propList);
@@ -1890,6 +2074,10 @@ export default function Home() {
         <PropertyDetailModal
           property={selectedProperty}
           onClose={() => setSelectedProperty(null)}
+                onView360={() => {
+        setSelectedProperty360(selectedProperty);
+        setSelectedProperty(null);
+      }}
         />
       )}
 
@@ -1899,6 +2087,14 @@ export default function Home() {
         <BusinessDetailModal
           business={selectedBusinessDetail}
           onClose={() => setSelectedBusinessDetail(null)}
+        />
+      )}
+      
+      {/* Property 360 Viewer */}
+      {selectedProperty360 && (
+        <Property360Viewer
+          property={selectedProperty360}
+          onClose={() => setSelectedProperty360(null)}
         />
       )}
     </main>
