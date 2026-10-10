@@ -28,6 +28,7 @@ type Business = {
   panorama_url?: string | null;
   photos?: { id: string; url: string; sort_order: number }[];
     panoramas?: { id: string; room_name: string; url: string; sort_order: number }[];
+      is_verified?: boolean;
 };
 type Property = {
   id: string;
@@ -47,6 +48,7 @@ type Property = {
   owner_id?: string | null;
   photos?: { id: string; url: string; sort_order: number }[];
   panoramas?: { id: string; room_name: string; url: string; sort_order: number }[];
+    is_verified?: boolean;
 };
 
 const CATEGORIES = [
