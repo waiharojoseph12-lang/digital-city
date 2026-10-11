@@ -425,6 +425,11 @@ function BusinessCard({
       <div className="p-4">
         <h3 className="font-semibold text-slate-800 text-sm leading-tight mb-1">
           {business.name}
+           {business.is_verified && (
+   <span className="inline-flex items-center justify-center text-blue-500 ml-1" title="Verified">
+     ✓
+   </span>
+ )}
         </h3>
         <p className="text-xs text-slate-500 mb-3">{business.tagline}</p>
                       {reviewCount > 0 && (
@@ -1245,7 +1250,11 @@ function PropertyCard({
       {/* Info block */}
       <div className="p-4">
         <h3 className="font-semibold text-slate-800 text-sm leading-tight mb-1 line-clamp-1">
-          {property.name}
+          {property.name} {property.is_verified && (
+  <span className="inline-flex items-center justify-center text-blue-500 ml-1" title="Verified">
+    ✓
+  </span>
+    )}
         </h3>
         <p className="text-xs text-slate-500 mb-3">
           {property.region} · Kenya
