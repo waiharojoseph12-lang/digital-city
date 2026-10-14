@@ -673,6 +673,20 @@ function BusinessDetailModal({
   onClose: () => void;
 }) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  
+  // Increment view count when modal opens
+  useEffect(() => {
+    if (!business?.id) return;
+    supabase
+      .from("views")
+      .insert({
+        listing_type: "business",
+        listing_id: business.id,
+      })
+      .then(({ error }) => {
+        if (error) console.error("View tracking failed:", error.message);
+      });
+  }, [business?.id]);
 
   const waLink = `https://wa.me/${business.phone}?text=${encodeURIComponent(
     `Hi ${business.name}, I found you on Digital Nairobi.`
@@ -1308,6 +1322,20 @@ function PropertyDetailModal({
   onClose: () => void;
     onView360: () => void;
 }) {
+  
+  // Increment view count when modal opens
+  useEffect(() => {
+    if (!property?.id) return;
+    supabase
+      .from("views")
+      .insert({
+        listing_type: "property",
+        listing_id: property.id,
+      })
+      .then(({ error }) => {
+        if (error) console.error("View tracking failed:", error.message);
+      });
+  }, [property?.id]);
   const waLink = `https://wa.me/${property.phone}?text=${encodeURIComponent(
     `Hi, I'm interested in "${property.name}" listed on Digital Nairobi.`
   )}`;
