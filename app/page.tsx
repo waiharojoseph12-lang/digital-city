@@ -374,12 +374,19 @@ function BusinessCard({
   reviews,
         onLeaveReview,
               onViewReviews,
+                trackLead,
 }: {
   business: Business;
   onView360: (business: Business) => void;
       onClick: (business: Business) => void;
         reviews: any[];
               onLeaveReview: (business: Business) => void;
+                trackLead: (
+    listingType: "business" | "property",
+    listingId: string,
+    action: "whatsapp" | "call" | "share" | "view"| "360",
+    source?: string
+  ) => void;
                     onViewReviews: (business: Business) => void;
 }) {
   const waLink = `https://wa.me/${business.phone}?text=${encodeURIComponent(
@@ -470,12 +477,14 @@ function BusinessCard({
                   <div className="grid grid-cols-3 gap-2">
             <a
               href={`tel:+${business.phone}`}
+                    onClick={() => trackLead("business", business.id, "call", "card")}
               className="text-center text-xs font-medium bg-blue-500 text-white px-2 py-2 rounded-lg hover:bg-blue-600 transition"
             >
               📞 Call
             </a>
             <a
               href={waLink}
+                   onClick={() => trackLead("business", business.id, "whatsapp", "card")} 
               target="_blank"
               rel="noopener noreferrer"
               className="text-center text-xs font-medium bg-green-500 text-white px-2 py-2 rounded-lg hover:bg-green-600 transition"
@@ -483,7 +492,7 @@ function BusinessCard({
               WhatsApp
             </a>
             <button
-                          onClick={(e) => { e.stopPropagation(); onView360(business); }}
+                               onClick={(e) => { e.stopPropagation(); trackLead("business", business.id, "share", "card"); onView360(business); }}
               className="text-xs font-medium bg-slate-100 text-slate-700 px-2 py-2 rounded-lg hover:bg-slate-200 transition"
             >
               360°
@@ -1185,9 +1194,16 @@ function PropertyCard({
   property,
   onView360,
   onClick,
+    trackLead,
 }: {
   property: Property;
   onView360: () => void;
+    trackLead: (
+    listingType: "business" | "property",
+    listingId: string,
+    action: "whatsapp" | "call" | "share" | "view"| "360",
+    source?: string
+  ) => void;
   onClick: () => void;
 }) {
   const waLink = `https://wa.me/${property.phone}?text=${encodeURIComponent(
@@ -1292,7 +1308,10 @@ function PropertyCard({
             href={waLink}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => {
+  e.stopPropagation();
+  trackLead("property", property.id, "whatsapp", "card");
+}}
             className="flex-1 text-center text-xs font-medium bg-green-500 text-white px-3 py-2 rounded-lg hover:bg-green-600 transition"
           >
             WhatsApp
@@ -1300,6 +1319,7 @@ function PropertyCard({
           <button
             onClick={(e) => {
               e.stopPropagation();
+              trackLead("property", property.id, "360", "card");
               onView360();
             }}
             className="flex-1 text-xs font-medium bg-slate-100 text-slate-700 px-3 py-2 rounded-lg hover:bg-slate-200 transition"
@@ -1706,6 +1726,26 @@ export default function Home() {
 
     setReviews(data || []);
   };
+  
+  // Track WhatsApp/Call/360° clicks as leads
+  const trackLead = (
+    listingType: "business" | "property",
+    listingId: string,
+    action: "whatsapp" | "call" | "share" | "view"| "360",
+    source?: string
+  ) => {
+    supabase
+      .from("leads")
+      .insert({
+        listing_type: listingType,
+        listing_id: listingId,
+        action,
+        source: source || null,
+      })
+      .then(({ error }) => {
+        if (error) console.error("Lead tracking failed:", error.message);
+      });
+  };
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -2037,6 +2077,7 @@ export default function Home() {
             setReviewModalOpen(true);
           }}
           onViewReviews={(biz) => setReviewsListBusiness(biz)}
+                trackLead={trackLead}
                 />
               ))}
             </div>
@@ -2050,6 +2091,7 @@ export default function Home() {
                 property={p}
                 onClick={() => setSelectedProperty(p)}
                 onView360={() => setSelectedProperty(p)}
+                                trackLead={trackLead}
               />
             ))}
             </div>
