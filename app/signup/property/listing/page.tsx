@@ -1,392 +1,225 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { supabase } from "../../../lib/supabase";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 const NAIROBI_REGIONS = [
   "Westlands", "Dagoretti North", "Dagoretti South", "Kibra", "Langata",
   "Starehe", "Kamukunji", "Mathare", "Makadara", "Embakasi West",
   "Embakasi Central", "Embakasi North", "Embakasi East", "Embakasi South",
-  "Roysambu", "Kasarani", "Ruaraka",
+  "Roysambu", "Kasarani", "Ruaraka", "Karen", "Kilimani", "Lavington", 
+  "South B", "South C", "Eastleigh", "Industrial Area", "Gigiri", "Runda"
 ];
 
 const KIAMBU_REGIONS = [
-  "Kikuyu", "Kabete", "Kiambu", "Ruiru", "Juja", "Thika",
+  "Kikuyu", "Kabete", "Kiambu Town", "Ruiru", "Juja", "Thika", 
+  "Mwihoko", "Kamakis", "Githurai", "Limuru", "Tigoni", "Ndenderu"
+];
+
+const MACHAKOS_REGIONS = [
+  "Mlolongo", "Syokimau", "Athi River", "Mavoko", "Kitengela"
 ];
 
 const PROPERTY_TYPES = [
-  "Apartment", "House", "Townhouse", "Short Stay", "Guesthouse",
-  "Hotel", "Office", "Plot", "Commercial", "Studio",
+  "Apartment", "House", "Townhouse", "Short Stay / BnB", "Guesthouse", "Hotel", "Office", "Plot", "Commercial", "Studio"
 ];
 
 export default function PropertyListingPage() {
-  const router = useRouter();
-  const [checkingAuth, setCheckingAuth] = useState(true);
-  const [userId, setUserId] = useState<string | null>(null);
-
-  // Form state
-  const [name, setName] = useState("");
-  const [listingType, setListingType] = useState<"Rent" | "Sale">("Rent");
-  const [propertyType, setPropertyType] = useState(PROPERTY_TYPES[0]);
-  const [region, setRegion] = useState(NAIROBI_REGIONS[0]);
-  const [phone, setPhone] = useState("");
-  const [tagline, setTagline] = useState("");
-  const [description, setDescription] = useState("");
-  const [price, setPrice] = useState("");
-  const [priceUnit, setPriceUnit] = useState<"month" | "total">("month");
-  const [bedrooms, setBedrooms] = useState("");
-  const [bathrooms, setBathrooms] = useState("");
-  const [imageFile, setImageFile] = useState<File | null>(null);
-
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  // Check auth
-  useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        router.push("/signup/property");
-        return;
-      }
-      setUserId(session.user.id);
-      setCheckingAuth(false);
-    };
-    checkAuth();
-  }, [router]);
-
-  // Property types that have bedrooms/bathrooms
-  const showRooms =
-    propertyType !== "Plot" &&
-    propertyType !== "Office" &&
-    propertyType !== "Commercial" &&
-    propertyType !== "Hotel";
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+    const [imageFile, setImageFile] = useState<File | null>(null);
+  
+  const [formData, setFormData] = useState({
+    name: "",
+    listing_type: "Rent",
+    property_type: "Apartment",
+    region: "Kamakis",
+    phone: "",
+    tagline: "",
+    description: "",
+    price: "",
+    price_unit: "month",
+    bedrooms: "",
+    bathrooms: "",
+    wants360: true,
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaving(true);
-    setMessage(null);
-    setError(null);
+        setLoading(true);
+    setErrorMsg("");
+    let finalImageUrl = null;
 
-    const parsedPrice = parseFloat(price);
-    if (isNaN(parsedPrice) || parsedPrice <= 0) {
-      setSaving(false);
-      setError("Please enter a valid price");
-      return;
-    }
-
-    let finalImageUrl: string | null = null;
-
-    // Upload photo if provided
     if (imageFile) {
       const fileExt = imageFile.name.split(".").pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
-      const filePath = `properties/${fileName}`;
-
       const { error: uploadError } = await supabase.storage
         .from("property-photos")
-        .upload(filePath, imageFile);
+        .upload(fileName, imageFile);
 
       if (uploadError) {
-        setSaving(false);
-        setError(`Photo upload failed: ${uploadError.message}`);
+        setErrorMsg("Photo upload failed: " + uploadError.message);
+        setLoading(false);
         return;
       }
 
       const { data: urlData } = supabase.storage
         .from("property-photos")
-        .getPublicUrl(filePath);
-
+        .getPublicUrl(fileName);
+        
       finalImageUrl = urlData.publicUrl;
     }
+    setLoading(true);
+    setErrorMsg("");
 
-    // Build the insert payload
-    const payload: any = {
-      name,
-      listing_type: listingType,
-      property_type: propertyType,
-      region,
-      phone,
-      tagline,
-      description: description || null,
-      price: parsedPrice,
-      price_unit: priceUnit,
-      image: finalImageUrl,
-      status: "pending",
-      is_paid: false,
-      owner_id: userId,
-    };
+    try {
+      const { data, error } = await supabase.from("properties").insert({
+        name: formData.name,
+        listing_type: formData.listing_type,
+        property_type: formData.property_type,
+        region: formData.region,
+        phone: formData.phone,
+        tagline: formData.tagline,
+        description: formData.description,
+        price: Number(formData.price),
+        price_unit: formData.price_unit,
+        bedrooms: formData.bedrooms ? Number(formData.bedrooms) : null,
+        bathrooms: formData.bathrooms ? Number(formData.bathrooms) : null,
+        status: "pending",
+        is_paid: false, 
+        is_verified: false,
+      }).select().single();
 
-    // Only include bedrooms/bathrooms when applicable
-    if (showRooms) {
-      const bed = parseInt(bedrooms);
-      const bath = parseInt(bathrooms);
-      payload.bedrooms = isNaN(bed) ? null : bed;
-      payload.bathrooms = isNaN(bath) ? null : bath;
-    } else {
-      payload.bedrooms = null;
-      payload.bathrooms = null;
+      if (error) throw error;
+
+      if (formData.wants360 && data) {
+        await supabase.from("leads").insert({
+          listing_type: "property",
+          listing_id: data.id,
+          action: "360",
+          source: "signup_request",
+        });
+      }
+
+      setSuccess(true);
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg(err.message || "Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
     }
-
-    const { error: insertError } = await supabase
-      .from("properties")
-      .insert(payload);
-
-    setSaving(false);
-
-    if (insertError) {
-      setError(insertError.message);
-      return;
-    }
-
-    setMessage(
-      "🎉 Your property has been submitted! We'll review it and get back to you shortly."
-    );
   };
 
-  if (checkingAuth) {
+  if (success) {
     return (
-      <main className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <p className="text-slate-500">Checking login...</p>
+      <main className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+        <div className="bg-white max-w-md w-full rounded-2xl shadow-xl p-8 text-center">
+          <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 text-4xl">✓</div>
+          <h1 className="text-2xl font-bold text-slate-800 mb-2">Property Submitted!</h1>
+          <p className="text-slate-600 mb-6">Your property has been submitted. Our team will review it and reach out on WhatsApp shortly.</p>
+          <a href={`https://wa.me/254715363005?text=Hi, I just submitted my property ${formData.name} on Digital Nairobi.`} target="_blank" className="block w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl transition">Chat with us on WhatsApp</a>
+          <Link href="/" className="block mt-4 text-sm text-slate-500 hover:text-slate-800">Back to Home</Link>
+        </div>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 py-12 px-6">
-      <div className="max-w-2xl mx-auto">
-        <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">
-            Tell us about your property
-          </h1>
-          <p className="text-slate-600">
-            Fill in the details below. First month is free.
-          </p>
+    <main className="min-h-screen bg-slate-50 py-12 px-4">
+      <div className="max-w-lg mx-auto">
+        <div className="text-center mb-8">
+          <Link href="/" className="inline-block text-2xl mb-4">🏙️</Link>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">List Your Property</h1>
+          <p className="text-slate-600">Reach thousands of buyers and renters.</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow p-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+          <div className="bg-emerald-900 p-4 text-center">
+            <p className="text-emerald-100 text-sm font-medium">🎉 First 100 properties get a <strong>free 360° photoshoot</strong> & 1 month free!</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-5">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Property name *
-              </label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                placeholder="e.g. Modern 3-Bedroom Apartment in Westlands"
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+              <label className="block text-sm font-semibold text-slate-700 mb-1">Property Name / Title *</label>
+              <input required type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-emerald-500" placeholder="e.g. Modern 3-Bedroom in Kamakis" />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Listing type *
-                </label>
-                <select
-                  value={listingType}
-                  onChange={(e) =>
-                    setListingType(e.target.value as "Rent" | "Sale")
-                  }
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="Rent">For Rent</option>
-                  <option value="Sale">For Sale</option>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">I am listing for *</label>
+                <select value={formData.listing_type} onChange={(e) => setFormData({...formData, listing_type: e.target.value})} className="w-full px-4 py-3 border border-slate-300 rounded-xl bg-white">
+                  <option value="Rent">Rent</option>
+                  <option value="Sale">Sale</option>
                 </select>
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Property type *
-                </label>
-                <select
-                  value={propertyType}
-                  onChange={(e) => setPropertyType(e.target.value)}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  {PROPERTY_TYPES.map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Property Type *</label>
+                <select value={formData.property_type} onChange={(e) => setFormData({...formData, property_type: e.target.value})} className="w-full px-4 py-3 border border-slate-300 rounded-xl bg-white">
+                  {PROPERTY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Region *
-              </label>
-              <select
-                value={region}
-                onChange={(e) => setRegion(e.target.value)}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <optgroup label="Nairobi">
-                  {NAIROBI_REGIONS.map((r) => (
-                    <option key={r} value={r}>{r}</option>
-                  ))}
-                </optgroup>
-                <optgroup label="Kiambu">
-                  {KIAMBU_REGIONS.map((r) => (
-                    <option key={r} value={r}>{r}</option>
-                  ))}
-                </optgroup>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">Region *</label>
+              <select value={formData.region} onChange={(e) => setFormData({...formData, region: e.target.value})} className="w-full px-4 py-3 border border-slate-300 rounded-xl bg-white">
+                <optgroup label="Kiambu (Kamakis/Ruiru)">{KIAMBU_REGIONS.map(r => <option key={r} value={r}>{r}</option>)}</optgroup>
+                <optgroup label="Nairobi">{NAIROBI_REGIONS.map(r => <option key={r} value={r}>{r}</option>)}</optgroup>
+                <optgroup label="Machakos">{MACHAKOS_REGIONS.map(r => <option key={r} value={r}>{r}</option>)}</optgroup>
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                WhatsApp / Phone *
-              </label>
-              <input
-                type="text"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                required
-                placeholder="254712345678"
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <p className="text-xs text-slate-400 mt-1">
-                Format: 254XXXXXXXXX (no +, no spaces)
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Tagline
-              </label>
-              <input
-                type="text"
-                value={tagline}
-                onChange={(e) => setTagline(e.target.value)}
-                placeholder="e.g. Prime location · Secure compound"
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Description
-              </label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={4}
-                placeholder="Describe the property — finishes, amenities, nearby landmarks..."
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Price (KES) *
-                </label>
-                <input
-                  type="number"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  required
-                  min={0}
-                  placeholder="e.g. 85000"
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Price (KES) *</label>
+                <input required type="number" value={formData.price} onChange={(e) => setFormData({...formData, price: e.target.value})} className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-emerald-500" placeholder="e.g. 50000" />
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Price unit *
-                </label>
-                <select
-                  value={priceUnit}
-                  onChange={(e) =>
-                    setPriceUnit(e.target.value as "month" | "total")
-                  }
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="month">Per month</option>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Price Unit *</label>
+                <select value={formData.price_unit} onChange={(e) => setFormData({...formData, price_unit: e.target.value})} className="w-full px-4 py-3 border border-slate-300 rounded-xl bg-white">
+                  <option value="month">Per Month</option>
                   <option value="total">Total</option>
                 </select>
               </div>
             </div>
 
-            {showRooms && (
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Bedrooms
-                  </label>
-                  <input
-                    type="number"
-                    value={bedrooms}
-                    onChange={(e) => setBedrooms(e.target.value)}
-                    min={0}
-                    placeholder="e.g. 3"
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Bathrooms
-                  </label>
-                  <input
-                    type="number"
-                    value={bathrooms}
-                    onChange={(e) => setBathrooms(e.target.value)}
-                    min={0}
-                    placeholder="e.g. 2"
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Bedrooms (Optional)</label>
+                <input type="number" value={formData.bedrooms} onChange={(e) => setFormData({...formData, bedrooms: e.target.value})} className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-emerald-500" placeholder="e.g. 3" />
               </div>
-            )}
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Cover photo
-              </label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-                className="w-full text-sm text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 file:cursor-pointer border border-slate-300 rounded-lg"
-              />
-              <p className="text-xs text-slate-400 mt-1">
-                {imageFile ? `Selected: ${imageFile.name}` : "Choose a photo from your device"}
-              </p>
-
-              {imageFile && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={URL.createObjectURL(imageFile)}
-                  alt="Preview"
-                  className="mt-3 w-32 h-32 object-cover rounded-lg border border-slate-200"
-                />
-              )}
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Bathrooms (Optional)</label>
+                <input type="number" value={formData.bathrooms} onChange={(e) => setFormData({...formData, bathrooms: e.target.value})} className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-emerald-500" placeholder="e.g. 2" />
+              </div>
             </div>
 
-            {error && (
-              <div className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">
-                {error}
-              </div>
-            )}
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">WhatsApp Phone Number *</label>
+              <input required type="tel" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-emerald-500" placeholder="e.g. 0712345678" />
+            </div>
 
-            {message && (
-              <div className="text-sm text-green-700 bg-green-50 px-3 py-2 rounded-lg">
-                {message}
-              </div>
-            )}
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">Short Description</label>
+              <textarea rows={3} value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-emerald-500" placeholder="Describe the property..." />
+            </div>
 
-            <button
-              type="submit"
-              disabled={saving || !!message}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition disabled:opacity-50"
-            >
-              {saving ? "Submitting..." : message ? "Submitted ✓" : "Submit property"}
+            <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input type="checkbox" checked={formData.wants360} onChange={(e) => setFormData({...formData, wants360: e.target.checked})} className="mt-1 w-5 h-5 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500" />
+                <div>
+                  <p className="font-semibold text-slate-800 text-sm">Request a Free 360° Virtual Tour</p>
+                  <p className="text-slate-500 text-xs mt-0.5">We will visit the property, take photos, and put them online.</p>
+                </div>
+              </label>
+            </div>
+
+            {errorMsg && <div className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{errorMsg}</div>}
+
+            <button type="submit" disabled={loading} className="w-full bg-emerald-900 hover:bg-emerald-800 text-white font-bold text-lg py-4 rounded-xl transition shadow-md disabled:opacity-50">
+              {loading ? "Submitting..." : "Submit My Property"}
             </button>
           </form>
         </div>
