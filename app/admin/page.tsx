@@ -270,6 +270,12 @@ export default function AdminPage() {
                             <div key={l.id} className="border rounded-lg p-4 mb-4 flex justify-between items-start gap-4">
                                 <div><h3 className="font-semibold">{l.name}</h3><p className="text-xs text-slate-500">{l.category} · {l.region} · {l.phone}</p></div>
                                 <div className="flex flex-col gap-2">
+                                                                            <button 
+                                            onClick={() => alert(`M-PESA PAYMENT REQUEST\n\nBusiness: ${l.name}\nAmount: KES 499\n\nPlease send KES 499 to:\nTill Number: 123456 (Placeholder)\nBusiness Name: Digital Nairobi\n\nOnce paid, click "Mark Paid" below.`)} 
+                                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium px-4 py-2 rounded-lg transition whitespace-nowrap"
+                                        >
+                                            📲 Request 499 KES
+                                        </button>
                                     <button onClick={() => handleMarkPaid(l.id)} className="bg-blue-600 text-white text-xs px-4 py-2 rounded-lg">💰 Mark Paid</button>
                                     <button onClick={() => handleVerifyBusiness(l.id, l.is_verified)} className={`text-xs px-4 py-2 rounded-lg ${l.is_verified ? "bg-emerald-600 text-white" : "bg-slate-100"}`}>{l.is_verified ? "✓ Verified" : "Mark Verified"}</button>
                                 </div>
@@ -300,6 +306,12 @@ export default function AdminPage() {
                             <div key={l.id} className="border rounded-lg p-4 mb-4 flex justify-between items-start gap-4">
                                 <div><h3 className="font-semibold">{l.name}</h3><p className="text-xs text-slate-500">{l.property_type} · {l.region} · {l.phone}</p></div>
                                 <div className="flex flex-col gap-2">
+                                                                            <button 
+                                            onClick={() => alert(`M-PESA PAYMENT REQUEST\n\nProperty: ${l.name}\nAmount: KES 999\n\nPlease send KES 999 to:\nTill Number: 123456 (Placeholder)\nBusiness Name: Digital Nairobi\n\nOnce paid, click "Mark Paid" below.`)} 
+                                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium px-4 py-2 rounded-lg transition whitespace-nowrap"
+                                        >
+                                            📲 Request 999 KES
+                                        </button>
                                     <button onClick={() => handlePropertyMarkPaid(l.id)} className="bg-blue-600 text-white text-xs px-4 py-2 rounded-lg">💰 Mark Paid</button>
                                     <button onClick={() => handleVerifyProperty(l.id, l.is_verified)} className={`text-xs px-4 py-2 rounded-lg ${l.is_verified ? "bg-emerald-600 text-white" : "bg-slate-100"}`}>{l.is_verified ? "✓ Verified" : "Mark Verified"}</button>
                                 </div>
