@@ -1,286 +1,220 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { supabase } from "../../lib/supabase";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 const NAIROBI_REGIONS = [
   "Westlands", "Dagoretti North", "Dagoretti South", "Kibra", "Langata",
   "Starehe", "Kamukunji", "Mathare", "Makadara", "Embakasi West",
   "Embakasi Central", "Embakasi North", "Embakasi East", "Embakasi South",
-  "Roysambu", "Kasarani", "Ruaraka",
+  "Roysambu", "Kasarani", "Ruaraka", "Karen", "Kilimani", "Lavington", 
+  "South B", "South C", "Eastleigh", "Industrial Area", "Gigiri", "Runda"
 ];
 
 const KIAMBU_REGIONS = [
-  "Kikuyu", "Kabete", "Kiambu", "Ruiru", "Juja", "Thika",
+  "Kikuyu", "Kabete", "Kiambu Town", "Ruiru", "Juja", "Thika", 
+  "Mwihoko", "Kamakis", "Githurai", "Limuru", "Tigoni", "Ndenderu"
+];
+
+const MACHAKOS_REGIONS = [
+  "Mlolongo", "Syokimau", "Athi River", "Mavoko", "Kitengela"
 ];
 
 const CATEGORIES = [
-  "Boutique", "Salon", "Showroom", "Restaurant", "Café",
-  "Furniture", "Electronics", "Massage", "Nail Parlour",
-  "Car Services", "Wines & Spirits", "Hardware",
+  "Boutique", "Salon", "Real Estate", "Food & Drink", "Electronics", "Hardware", "Other"
 ];
 
 export default function ListingPage() {
-  const router = useRouter();
-  const [checkingAuth, setCheckingAuth] = useState(true);
-  const [userId, setUserId] = useState<string | null>(null);
-
-  // Form state
-  const [name, setName] = useState("");
-  const [category, setCategory] = useState(CATEGORIES[0]);
-  const [region, setRegion] = useState(NAIROBI_REGIONS[0]);
-  const [phone, setPhone] = useState("");
-  const [tagline, setTagline] = useState("");
-  const [services, setServices] = useState("");
-  const [imageFile, setImageFile] = useState<File | null>(null);
-
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  // Check auth
-  useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        router.push("/signup");
-        return;
-      }
-      setUserId(session.user.id);
-      setCheckingAuth(false);
-    };
-    checkAuth();
-  }, [router]);
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  
+  const [formData, setFormData] = useState({
+    name: "",
+    category: "Boutique",
+    region: "Kamakis",
+    phone: "",
+    tagline: "",
+    wants360: true,
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaving(true);
-    setMessage(null);
-    setError(null);
+    setLoading(true);
+    setErrorMsg("");
 
-    let finalImageUrl: string | null = null;
+    try {
+      // 1. Insert the business
+      const { data, error } = await supabase.from("businesses").insert({
+        name: formData.name,
+        category: formData.category,
+        region: formData.region,
+        phone: formData.phone,
+        tagline: formData.tagline,
+        status: "pending", // Must be approved by you in admin
+        is_paid: true, // Free trial
+        is_verified: false,
+      }).select().single();
 
-    // Upload photo if provided
-    if (imageFile) {
-      const fileExt = imageFile.name.split(".").pop();
-      const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
-      const filePath = `businesses/${fileName}`;
+      if (error) throw error;
 
-      const { error: uploadError } = await supabase.storage
-        .from("business-photos")
-        .upload(filePath, imageFile);
-
-      if (uploadError) {
-        setSaving(false);
-        setError(`Photo upload failed: ${uploadError.message}`);
-        return;
+      // 2. If they want a 360 shoot, log it (we will use the leads table for now)
+      if (formData.wants360 && data) {
+        await supabase.from("leads").insert({
+          listing_type: "business",
+          listing_id: data.id,
+          action: "360",
+          source: "signup_request",
+        });
       }
 
-      const { data: urlData } = supabase.storage
-        .from("business-photos")
-        .getPublicUrl(filePath);
-
-      finalImageUrl = urlData.publicUrl;
+      setSuccess(true);
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg(err.message || "Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
     }
-
-    const servicesArray = services
-      .split(",")
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
-
-    // Insert business with pending status
-    const { error: insertError } = await supabase.from("businesses").insert({
-      name,
-      category,
-      region,
-      phone,
-      tagline,
-      image: finalImageUrl,
-      services: servicesArray,
-      status: "pending",
-      is_paid: false,
-      owner_id: userId,
-    });
-
-    setSaving(false);
-
-    if (insertError) {
-      setError(insertError.message);
-      return;
-    }
-
-    setMessage(
-      "🎉 Your listing has been submitted! We'll review it and get back to you shortly."
-    );
-
-    // Optionally redirect after a delay
-    // setTimeout(() => router.push("/"), 3000);
   };
 
-  if (checkingAuth) {
+  if (success) {
     return (
-      <main className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <p className="text-slate-500">Checking login...</p>
+      <main className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+        <div className="bg-white max-w-md w-full rounded-2xl shadow-xl p-8 text-center">
+          <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 text-4xl">
+            ✓
+          </div>
+          <h1 className="text-2xl font-bold text-slate-800 mb-2">You're on the list!</h1>
+          <p className="text-slate-600 mb-6">
+            Your business has been submitted. Our team will review it and reach out on WhatsApp shortly.
+          </p>
+          <a 
+            href={`https://wa.me/254700000000?text=Hi, I just signed up my business ${formData.name} on Digital Nairobi.`}
+            target="_blank"
+            className="block w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl transition"
+          >
+            Chat with us on WhatsApp
+          </a>
+          <Link href="/" className="block mt-4 text-sm text-slate-500 hover:text-slate-800">
+            Back to Home
+          </Link>
+        </div>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 py-12 px-6">
-      <div className="max-w-2xl mx-auto">
-        <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">
-            Tell us about your business
-          </h1>
-          <p className="text-slate-600">
-            Fill in the details below. First month is free.
-          </p>
+    <main className="min-h-screen bg-slate-50 py-12 px-4">
+      <div className="max-w-lg mx-auto">
+        <div className="text-center mb-8">
+          <Link href="/" className="inline-block text-2xl mb-4">🏙️</Link>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">List Your Business</h1>
+          <p className="text-slate-600">Join Kenya's premium business directory.</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow p-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+          <div className="bg-emerald-900 p-4 text-center">
+            <p className="text-emerald-100 text-sm font-medium">
+              🎉 First 100 businesses get a <strong>free 360° photoshoot</strong> & 1 month free!
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-5">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Business name *
-              </label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+              <label className="block text-sm font-semibold text-slate-700 mb-1">Business Name *</label>
+              <input 
                 required
-                placeholder="e.g. Wakalucy Fish Palace"
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                type="text" 
+                value={formData.name}
+                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                placeholder="e.g. Kamakis Boutique"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Category *
-                </label>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Category *</label>
                 <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={formData.category}
+                  onChange={(e) => setFormData({...formData, category: e.target.value})}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
                 >
-                  {CATEGORIES.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
+                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Region *
-                </label>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Region *</label>
                 <select
-                  value={region}
-                  onChange={(e) => setRegion(e.target.value)}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={formData.region}
+                  onChange={(e) => setFormData({...formData, region: e.target.value})}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
                 >
+                  <optgroup label="Kiambu (Kamakis/Ruiru)">
+                    {KIAMBU_REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
+                  </optgroup>
                   <optgroup label="Nairobi">
-                    {NAIROBI_REGIONS.map((r) => (
-                      <option key={r} value={r}>{r}</option>
-                    ))}
+                    {NAIROBI_REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
                   </optgroup>
-                  <optgroup label="Kiambu">
-                    {KIAMBU_REGIONS.map((r) => (
-                      <option key={r} value={r}>{r}</option>
-                    ))}
+                  <optgroup label="Machakos">
+                    {MACHAKOS_REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
                   </optgroup>
                 </select>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                WhatsApp / Phone *
-              </label>
-              <input
-                type="text"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+              <label className="block text-sm font-semibold text-slate-700 mb-1">WhatsApp Phone Number *</label>
+              <input 
                 required
-                placeholder="254712345678"
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <p className="text-xs text-slate-400 mt-1">
-                Format: 254XXXXXXXXX (no +, no spaces)
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Tagline
-              </label>
-              <input
-                type="text"
-                value={tagline}
-                onChange={(e) => setTagline(e.target.value)}
-                placeholder="e.g. Fresh fish daily"
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                type="tel" 
+                value={formData.phone}
+                onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                placeholder="e.g. 0712345678"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Services offered
-              </label>
-              <input
-                type="text"
-                value={services}
-                onChange={(e) => setServices(e.target.value)}
-                placeholder="e.g. Fried fish, Ugali, Takeaway"
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              <label className="block text-sm font-semibold text-slate-700 mb-1">Short Tagline</label>
+              <input 
+                type="text" 
+                value={formData.tagline}
+                onChange={(e) => setFormData({...formData, tagline: e.target.value})}
+                className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                placeholder="e.g. Best dresses in Kamakis"
               />
-              <p className="text-xs text-slate-400 mt-1">
-                Separate with commas
-              </p>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Photo
-              </label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-                className="w-full text-sm text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 file:cursor-pointer border border-slate-300 rounded-lg"
-              />
-              <p className="text-xs text-slate-400 mt-1">
-                {imageFile ? `Selected: ${imageFile.name}` : "Choose a photo from your device"}
-              </p>
-
-              {imageFile && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={URL.createObjectURL(imageFile)}
-                  alt="Preview"
-                  className="mt-3 w-32 h-32 object-cover rounded-lg border border-slate-200"
+            <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={formData.wants360}
+                  onChange={(e) => setFormData({...formData, wants360: e.target.checked})}
+                  className="mt-1 w-5 h-5 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500"
                 />
-              )}
+                <div>
+                  <p className="font-semibold text-slate-800 text-sm">Request a Free 360° Virtual Tour</p>
+                  <p className="text-slate-500 text-xs mt-0.5">We will visit your shop, take photos, and put them online.</p>
+                </div>
+              </label>
             </div>
 
-            {error && (
+            {errorMsg && (
               <div className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">
-                {error}
+                {errorMsg}
               </div>
             )}
 
-            {message && (
-              <div className="text-sm text-green-700 bg-green-50 px-3 py-2 rounded-lg">
-                {message}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={saving || !!message}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition disabled:opacity-50"
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="w-full bg-emerald-900 hover:bg-emerald-800 text-white font-bold text-lg py-4 rounded-xl transition shadow-md disabled:opacity-50"
             >
-              {saving ? "Submitting..." : message ? "Submitted ✓" : "Submit listing"}
+              {loading ? "Submitting..." : "Submit My Business"}
             </button>
           </form>
         </div>
