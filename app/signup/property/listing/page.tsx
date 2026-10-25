@@ -70,9 +70,7 @@ export default function PropertyListingPage() {
         .getPublicUrl(fileName);
         
       finalImageUrl = urlData.publicUrl;
-    }
-    setLoading(true);
-    setErrorMsg("");
+   }
 
     try {
       const { data, error } = await supabase.from("properties").insert({
@@ -204,6 +202,15 @@ export default function PropertyListingPage() {
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1">Short Description</label>
               <textarea rows={3} value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-emerald-500" placeholder="Describe the property..." />
+            </div>
+                        <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">Upload a Photo (Optional)</label>
+              <input 
+                type="file" 
+                accept="image/*"
+                onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+                className="w-full px-4 py-3 border border-slate-300 rounded-xl bg-white focus:ring-emerald-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100" 
+              />
             </div>
 
             <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl">

@@ -29,6 +29,7 @@ export default function ListingPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+    const [imageFile, setImageFile] = useState<File | null>(null);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -42,6 +43,27 @@ export default function ListingPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+        let finalImageUrl = null;
+
+    if (imageFile) {
+      const fileExt = imageFile.name.split(".").pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from("business-photos")
+        .upload(fileName, imageFile);
+
+      if (uploadError) {
+        setErrorMsg("Photo upload failed: " + uploadError.message);
+        setLoading(false);
+        return;
+      }
+
+      const { data: urlData } = supabase.storage
+        .from("business-photos")
+        .getPublicUrl(fileName);
+        
+      finalImageUrl = urlData.publicUrl;
+    }
     setErrorMsg("");
 
     try {
@@ -52,6 +74,7 @@ export default function ListingPage() {
         region: formData.region,
         phone: formData.phone,
         tagline: formData.tagline,
+                image: finalImageUrl,
         status: "pending", // Must be approved by you in admin
         is_paid: true, // Free trial
         is_verified: false,
@@ -186,6 +209,15 @@ export default function ListingPage() {
                 className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 placeholder="e.g. Best dresses in Kamakis"
               />
+                          <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">Upload a Photo (Optional)</label>
+              <input 
+                type="file" 
+                accept="image/*"
+                onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+                className="w-full px-4 py-3 border border-slate-300 rounded-xl bg-white focus:ring-emerald-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100" 
+              />
+            </div>
             </div>
 
             <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl">
