@@ -1,21 +1,12 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
-import Script from "next/script";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Digital Nairobi",
-  description: "Explore Nairobi's businesses on an interactive map.",
+  title: "Digital Nairobi | Kenya's Premium Business & Property Directory",
+  description: "Discover the best businesses, real estate, and 360° virtual tours in Nairobi, Kiambu, and Machakos.",
 };
 
 export default function RootLayout({
@@ -26,19 +17,19 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        {/* Keep Pannellum for your 360° tours */}
         <link
           rel="stylesheet"
           href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css"
         />
-      </head>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
-        <Script
+        <script
+          type="text/javascript"
           src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"
-          strategy="afterInteractive"
-        />
+          async
+        ></script>
+      </head>
+      <body className={`${jakarta.className} antialiased bg-slate-50 text-slate-900`}>
+        {children}
       </body>
     </html>
   );

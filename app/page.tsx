@@ -4,15 +4,22 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "./lib/supabase";
 
 // ---------- Region data ----------
+// ---------- Region data ----------
 const NAIROBI_REGIONS = [
   "Westlands", "Dagoretti North", "Dagoretti South", "Kibra", "Langata",
   "Starehe", "Kamukunji", "Mathare", "Makadara", "Embakasi West",
   "Embakasi Central", "Embakasi North", "Embakasi East", "Embakasi South",
-  "Roysambu", "Kasarani", "Ruaraka",
+  "Roysambu", "Kasarani", "Ruaraka", "Karen", "Kilimani", "Lavington", 
+  "South B", "South C", "Eastleigh", "Industrial Area", "Gigiri", "Runda"
 ];
 
 const KIAMBU_REGIONS = [
-  "Kikuyu", "Kabete", "Kiambu", "Ruiru", "Juja", "Thika",
+  "Kikuyu", "Kabete", "Kiambu Town", "Ruiru", "Juja", "Thika", 
+  "Mwihoko", "Kamakis", "Githurai", "Limuru", "Tigoni", "Ndenderu"
+];
+
+const MACHAKOS_REGIONS = [
+  "Mlolongo", "Syokimau", "Athi River", "Mavoko", "Kitengela"
 ];
 
 // ---------- Business seed data (dummy for now — replace with real data later) ----------
@@ -1537,16 +1544,18 @@ export default function Home() {
    = useState<Business | null>(null);
 
      const [contentTab, setContentTab] = useState<"businesses" | "properties">("businesses");
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const countyOf = (name: string): "Nairobi" | "Kiambu" =>
-    KIAMBU_REGIONS.includes(name) ? "Kiambu" : "Nairobi";
+const countyOf = (name: string): "Nairobi" | "Kiambu" | "Machakos" =>
+  KIAMBU_REGIONS.includes(name) ? "Kiambu" : 
+  MACHAKOS_REGIONS.includes(name) ? "Machakos" : "Nairobi";
 
   const pickRegion = (name: string) => {
     setSelected(name);
     setTab("360");
   };
 
-  const regionProps = (name: string, county: "Nairobi" | "Kiambu") => ({
+  const regionProps = (name: string, county: "Nairobi" | "Kiambu" | "Machakos") => ({
     "data-region": name,
     "data-county": county,
     onMouseEnter: () => setHovered(name),
@@ -1555,13 +1564,13 @@ export default function Home() {
     style: { cursor: "pointer" } as React.CSSProperties,
   });
 
-  const fillFor = (name: string, county: "Nairobi" | "Kiambu") => {
+ const fillFor = (name: string, county: "Nairobi" | "Kiambu" | "Machakos") => {
     if (selected === name) return county === "Kiambu" ? "#7c3aed" : "#1d4ed8";
     if (hovered === name) return county === "Kiambu" ? "#a78bfa" : "#60a5fa";
     return county === "Kiambu" ? "#c4b5fd" : "#93c5fd";
   };
 
-  const strokeFor = (county: "Nairobi" | "Kiambu") =>
+  const strokeFor = (county: "Nairobi" | "Kiambu" | "Machakos") =>
     county === "Kiambu" ? "#5b21b6" : "#1e40af";
 
    const [businesses, setBusinesses] = useState<Business[]>([]);
@@ -1575,18 +1584,12 @@ export default function Home() {
     const [selectedBusinessDetail, setSelectedBusinessDetail] = useState<Business | null>(null);
 
   useEffect(() => {
-       
-    if (!selected) {
-      setBusinesses([]);
-      return;
-    }
     
     let cancelled = false;
     const fetchBusinesses = async () => {
       const { data, error } = await supabase
         .from("businesses")
         .select("*")
-        .eq("region", selected)
         .eq("is_paid", true);
 
       if (error) {
@@ -1658,7 +1661,6 @@ export default function Home() {
         const { data: propData, error: propError } = await supabase
           .from("properties")
           .select("*")
-          .eq("region", selected)
           .eq("is_paid", true)
           .eq("status", "approved");
 
@@ -1712,7 +1714,7 @@ export default function Home() {
      return () => {
       cancelled = true;
     };
-      }, [selected]);
+      }, []);
   
   const fetchReviewsAll = async () => {
     const { data, error } = await supabase
@@ -1746,9 +1748,40 @@ export default function Home() {
         if (error) console.error("Lead tracking failed:", error.message);
       });
   };
+    // Filter arrays based on search query
+  const filteredBusinesses = businesses.filter((b) => 
+    searchQuery === "" || 
+    b.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    b.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    b.region.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredProperties = properties.filter((p) => 
+    searchQuery === "" || 
+    p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    p.property_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    p.region.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <main className="min-h-screen bg-slate-50">
+            {/* ============ PREMIUM HEADER ============ */}
+      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200">
+        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">🏙️</span>
+            <span className="font-bold text-xl text-emerald-900 tracking-tight">Digital Nairobi</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <a href="https://wa.me/254700000000" target="_blank" rel="noopener noreferrer" className="hidden sm:block text-sm font-medium text-slate-600 hover:text-emerald-900 transition">
+              Customer Care
+            </a>
+            <a href="/signup/listing" className="bg-emerald-900 text-white text-sm font-semibold px-4 py-2 rounded-full hover:bg-emerald-800 transition shadow-md">
+              List Your Business
+            </a>
+          </div>
+        </div>
+      </header>
       {/* ============ CINEMATIC HERO ============ */}
       <section className="relative w-full h-[70vh] min-h-[500px] overflow-hidden">
         <video
@@ -1763,23 +1796,41 @@ export default function Home() {
         <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-black/80" />
 
         <div className="relative z-10 h-full flex flex-col items-center justify-center text-center px-6">
-          <span className="text-xs uppercase tracking-[0.3em] text-white/80 mb-4">
-            Nairobi · Kiambu · Kenya
+                   <span className="inline-block text-xs uppercase tracking-[0.3em] text-emerald-200 font-semibold mb-6 bg-emerald-900/50 px-4 py-1.5 rounded-full border border-emerald-500/30 backdrop-blur-sm">
+            Nairobi · Kiambu · Machakos
           </span>
-          <h1 className="text-5xl md:text-7xl font-bold text-white mb-4 tracking-tight">
-            Digital Nairobi
+          
+          <h1 className="text-5xl md:text-7xl font-extrabold text-white mb-6 tracking-tight drop-shadow-lg">
+            Discover the Best of <br className="hidden md:block" /> 
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-amber-400">Digital Nairobi</span>
           </h1>
-          <p className="text-lg md:text-xl text-white/90 max-w-2xl mb-8">
-            Discover the city&apos;s finest showrooms, boutiques, and businesses — 
-            all on one interactive map with 360° virtual views.
+          
+          <p className="text-lg md:text-xl text-slate-200 max-w-2xl mb-10 font-medium">
+            The most trusted directory for businesses, real estate, and 360° virtual tours across Kenya.
           </p>
-          <a
-            href="#explore"
-            className="inline-flex items-center gap-2 bg-white text-slate-900 font-semibold px-6 py-3 rounded-full hover:bg-slate-100 transition shadow-lg"
-          >
-            Start exploring
-            <span>↓</span>
-          </a>
+
+          {/* THE SEARCH BAR */}
+          <div className="w-full max-w-3xl bg-white/10 backdrop-blur-xl border border-white/20 p-2 rounded-2xl shadow-2xl flex flex-col sm:flex-row gap-2">
+            <div className="flex-1 flex items-center bg-white rounded-xl px-4 py-3">
+              <span className="text-slate-400 mr-3 text-xl">🔍</span>
+                          <input 
+                type="text" 
+                placeholder="Search boutiques, apartments, plots..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-transparent outline-none text-slate-800 placeholder-slate-400 font-medium"
+              />
+                       <button 
+              onClick={() => {
+                const resultsSection = document.getElementById("explore");
+                if (resultsSection) resultsSection.scrollIntoView({ behavior: "smooth" });
+              }}
+              className="bg-emerald-900 hover:bg-emerald-800 text-white font-bold text-lg px-8 py-3 rounded-xl transition shadow-lg shrink-0"
+            >
+              Search
+            </button>
+          </div>
+          </div>
         </div>
 
         <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-slate-50 to-transparent" />
@@ -1796,65 +1847,11 @@ export default function Home() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* LEFT PANEL */}
-          <div className="lg:col-span-1 bg-white rounded-2xl shadow p-6">
-            <div className="mb-4">
-              <p className="text-sm text-slate-500">Hovering</p>
-              <p className="font-semibold text-slate-800">{hovered ?? "—"}</p>
-            </div>
-            <div className="mb-6">
-              <p className="text-sm text-slate-500">Selected region</p>
-              <p className="font-semibold text-blue-600 text-lg">
-                {selected ?? "None yet"}
-              </p>
-            </div>
-
-            <p className="text-sm text-slate-500 mb-2">
-              Nairobi ({NAIROBI_REGIONS.length})
-            </p>
-            <div className="flex flex-wrap gap-2 mb-4">
-              {NAIROBI_REGIONS.map((r) => (
-                <button
-                  key={r}
-                  onClick={() => pickRegion(r)}
-                  onMouseEnter={() => setHovered(r)}
-                  onMouseLeave={() => setHovered(null)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium border transition ${
-                    selected === r
-                      ? "bg-blue-600 text-white border-blue-600"
-                      : "bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
-                  }`}
-                >
-                  {r}
-                </button>
-              ))}
-            </div>
-
-            <p className="text-sm text-slate-500 mb-2">
-              Kiambu ({KIAMBU_REGIONS.length})
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {KIAMBU_REGIONS.map((r) => (
-                <button
-                  key={r}
-                  onClick={() => pickRegion(r)}
-                  onMouseEnter={() => setHovered(r)}
-                  onMouseLeave={() => setHovered(null)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium border transition ${
-                    selected === r
-                      ? "bg-purple-600 text-white border-purple-600"
-                      : "bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100"
-                  }`}
-                >
-                  {r}
-                </button>
-              ))}
-            </div>
-          </div>
+        <div className="mb-8">
+          
 
           {/* RIGHT PANEL */}
-          <div className="lg:col-span-2 bg-white rounded-2xl shadow p-6">
+          <div className="w-full bg-white rounded-2xl shadow p-6">
             <div className="flex items-center justify-between mb-4 border-b border-slate-200">
               <div className="flex gap-1">
                 <TabButton active={tab === "map"} onClick={() => setTab("map")}>
@@ -1882,76 +1879,39 @@ export default function Home() {
 
             {tab === "map" && (
               <div>
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-sm text-slate-500">
-                    Click a region to open its 360° view
+                               <div className="flex items-center justify-between mb-4">
+                  <p className="text-sm text-slate-500 font-medium">
+                    Browse by Category
                   </p>
-                  <div className="flex items-center gap-3 text-xs">
-                    <span className="flex items-center gap-1">
-                      <span className="inline-block w-3 h-3 rounded-sm bg-blue-300 border border-blue-800" />
-                      Nairobi
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <span className="inline-block w-3 h-3 rounded-sm bg-purple-300 border border-purple-800" />
-                      Kiambu
-                    </span>
-                  </div>
                 </div>
 
-                <svg
-                  viewBox="0 0 900 700"
-                  className="w-full h-auto"
-                  role="img"
-                  aria-label="Map of Nairobi and nearby Kiambu areas"
-                >
-                  <polygon points="220,180 300,150 360,170 340,230 260,240 210,220" fill={fillFor("Kikuyu", "Kiambu")} stroke={strokeFor("Kiambu")} strokeWidth="2" {...regionProps("Kikuyu", "Kiambu")} />
-                  <text x="265" y="205" textAnchor="middle" fontSize="13" fill="#3b0764" pointerEvents="none">Kikuyu</text>
-                  <polygon points="300,150 420,140 470,165 440,215 360,170" fill={fillFor("Kabete", "Kiambu")} stroke={strokeFor("Kiambu")} strokeWidth="2" {...regionProps("Kabete", "Kiambu")} />
-                  <text x="400" y="185" textAnchor="middle" fontSize="13" fill="#3b0764" pointerEvents="none">Kabete</text>
-                  <polygon points="470,165 560,155 600,185 560,225 440,215" fill={fillFor("Kiambu", "Kiambu")} stroke={strokeFor("Kiambu")} strokeWidth="2" {...regionProps("Kiambu", "Kiambu")} />
-                  <text x="530" y="195" textAnchor="middle" fontSize="13" fill="#3b0764" pointerEvents="none">Kiambu</text>
-                  <polygon points="600,185 720,175 760,205 700,235 560,225" fill={fillFor("Ruiru", "Kiambu")} stroke={strokeFor("Kiambu")} strokeWidth="2" {...regionProps("Ruiru", "Kiambu")} />
-                  <text x="660" y="210" textAnchor="middle" fontSize="13" fill="#3b0764" pointerEvents="none">Ruiru</text>
-                  <polygon points="760,205 850,210 880,240 820,265 700,235" fill={fillFor("Juja", "Kiambu")} stroke={strokeFor("Kiambu")} strokeWidth="2" {...regionProps("Juja", "Kiambu")} />
-                  <text x="795" y="240" textAnchor="middle" fontSize="13" fill="#3b0764" pointerEvents="none">Juja</text>
-                  <polygon points="880,240 940,245 950,285 880,300 820,265" fill={fillFor("Thika", "Kiambu")} stroke={strokeFor("Kiambu")} strokeWidth="2" {...regionProps("Thika", "Kiambu")} />
-                  <text x="890" y="275" textAnchor="middle" fontSize="13" fill="#3b0764" pointerEvents="none">Thika</text>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-8">
+                  {[
+                    { label: "Boutiques", icon: "👗" },
+                    { label: "Salons", icon: "💇🏽‍♀️" },
+                    { label: "Real Estate", icon: "🏠" },
+                    { label: "Food & Drink", icon: "🍔" },
+                    { label: "Electronics", icon: "📱" },
+                    { label: "Hardware", icon: "🔧" },
+                  ].map((cat) => (
+                    <button
+                      key={cat.label}
+                      onClick={() => {
+                        setSearchQuery(cat.label);
+                        document.getElementById("explore")?.scrollIntoView({ behavior: "smooth" });
+                      }}
+                      className="bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 p-4 rounded-xl text-center transition group"
+                    >
+                      <span className="text-3xl block mb-2 group-hover:scale-110 transition-transform">{cat.icon}</span>
+                      <span className="text-sm font-semibold text-slate-700 group-hover:text-emerald-900">{cat.label}</span>
+                    </button>
+                  ))}
+                </div>
 
-                  <polygon points="130,330 220,290 300,300 290,380 200,400 140,380" fill={fillFor("Westlands", "Nairobi")} stroke={strokeFor("Nairobi")} strokeWidth="2" {...regionProps("Westlands", "Nairobi")} />
-                  <text x="215" y="350" textAnchor="middle" fontSize="13" fill="#0c1e4a" pointerEvents="none">Westlands</text>
-                  <polygon points="80,340 140,320 130,330 140,380 100,400 70,380" fill={fillFor("Dagoretti North", "Nairobi")} stroke={strokeFor("Nairobi")} strokeWidth="2" {...regionProps("Dagoretti North", "Nairobi")} />
-                  <text x="85" y="360" textAnchor="middle" fontSize="11" fill="#0c1e4a" pointerEvents="none">Dago N</text>
-                  <polygon points="60,400 100,400 140,380 120,440 70,450" fill={fillFor("Dagoretti South", "Nairobi")} stroke={strokeFor("Nairobi")} strokeWidth="2" {...regionProps("Dagoretti South", "Nairobi")} />
-                  <text x="80" y="425" textAnchor="middle" fontSize="11" fill="#0c1e4a" pointerEvents="none">Dago S</text>
-                  <polygon points="120,440 200,400 240,430 200,490 130,490" fill={fillFor("Kibra", "Nairobi")} stroke={strokeFor("Nairobi")} strokeWidth="2" {...regionProps("Kibra", "Nairobi")} />
-                  <text x="180" y="455" textAnchor="middle" fontSize="13" fill="#0c1e4a" pointerEvents="none">Kibra</text>
-                  <polygon points="70,460 130,490 200,490 240,540 130,570 60,520" fill={fillFor("Langata", "Nairobi")} stroke={strokeFor("Nairobi")} strokeWidth="2" {...regionProps("Langata", "Nairobi")} />
-                  <text x="150" y="530" textAnchor="middle" fontSize="13" fill="#0c1e4a" pointerEvents="none">Langata</text>
-                  <polygon points="240,380 300,360 350,390 330,440 260,450 230,420" fill={fillFor("Starehe", "Nairobi")} stroke={strokeFor("Nairobi")} strokeWidth="2" {...regionProps("Starehe", "Nairobi")} />
-                  <text x="290" y="410" textAnchor="middle" fontSize="13" fill="#0c1e4a" pointerEvents="none">Starehe</text>
-                  <polygon points="300,360 350,350 400,380 380,420 350,390" fill={fillFor("Kamukunji", "Nairobi")} stroke={strokeFor("Nairobi")} strokeWidth="2" {...regionProps("Kamukunji", "Nairobi")} />
-                  <text x="355" y="390" textAnchor="middle" fontSize="11" fill="#0c1e4a" pointerEvents="none">Kamukunji</text>
-                  <polygon points="260,450 330,440 380,470 350,510 280,500" fill={fillFor("Mathare", "Nairobi")} stroke={strokeFor("Nairobi")} strokeWidth="2" {...regionProps("Mathare", "Nairobi")} />
-                  <text x="315" y="480" textAnchor="middle" fontSize="13" fill="#0c1e4a" pointerEvents="none">Mathare</text>
-                  <polygon points="240,500 330,470 400,490 380,540 280,540" fill={fillFor("Makadara", "Nairobi")} stroke={strokeFor("Nairobi")} strokeWidth="2" {...regionProps("Makadara", "Nairobi")} />
-                  <text x="325" y="515" textAnchor="middle" fontSize="13" fill="#0c1e4a" pointerEvents="none">Makadara</text>
-                  <polygon points="380,420 460,410 500,440 470,480 400,470 380,440" fill={fillFor("Embakasi West", "Nairobi")} stroke={strokeFor("Nairobi")} strokeWidth="2" {...regionProps("Embakasi West", "Nairobi")} />
-                  <text x="435" y="450" textAnchor="middle" fontSize="11" fill="#0c1e4a" pointerEvents="none">Emb W</text>
-                  <polygon points="470,440 520,420 570,450 540,490 470,480" fill={fillFor("Embakasi Central", "Nairobi")} stroke={strokeFor("Nairobi")} strokeWidth="2" {...regionProps("Embakasi Central", "Nairobi")} />
-                  <text x="515" y="460" textAnchor="middle" fontSize="11" fill="#0c1e4a" pointerEvents="none">Emb C</text>
-                  <polygon points="460,340 540,320 600,360 560,400 480,400 460,380" fill={fillFor("Embakasi North", "Nairobi")} stroke={strokeFor("Nairobi")} strokeWidth="2" {...regionProps("Embakasi North", "Nairobi")} />
-                  <text x="530" y="370" textAnchor="middle" fontSize="11" fill="#0c1e4a" pointerEvents="none">Emb N</text>
-                  <polygon points="620,380 720,360 780,400 740,450 640,450 610,420" fill={fillFor("Embakasi East", "Nairobi")} stroke={strokeFor("Nairobi")} strokeWidth="2" {...regionProps("Embakasi East", "Nairobi")} />
-                  <text x="690" y="410" textAnchor="middle" fontSize="11" fill="#0c1e4a" pointerEvents="none">Emb E</text>
-                  <polygon points="450,510 550,490 640,510 700,560 620,600 500,600 430,560" fill={fillFor("Embakasi South", "Nairobi")} stroke={strokeFor("Nairobi")} strokeWidth="2" {...regionProps("Embakasi South", "Nairobi")} />
-                  <text x="565" y="555" textAnchor="middle" fontSize="13" fill="#0c1e4a" pointerEvents="none">Embakasi South</text>
-                  <polygon points="300,300 400,280 470,300 460,340 380,350 300,340" fill={fillFor("Roysambu", "Nairobi")} stroke={strokeFor("Nairobi")} strokeWidth="2" {...regionProps("Roysambu", "Nairobi")} />
-                  <text x="385" y="320" textAnchor="middle" fontSize="13" fill="#0c1e4a" pointerEvents="none">Roysambu</text>
-                  <polygon points="470,300 600,280 680,310 660,360 600,360 470,340" fill={fillFor("Kasarani", "Nairobi")} stroke={strokeFor("Nairobi")} strokeWidth="2" {...regionProps("Kasarani", "Nairobi")} />
-                  <text x="570" y="325" textAnchor="middle" fontSize="13" fill="#0c1e4a" pointerEvents="none">Kasarani</text>
-                  <polygon points="400,350 460,340 470,380 460,410 400,410 380,380" fill={fillFor("Ruaraka", "Nairobi")} stroke={strokeFor("Nairobi")} strokeWidth="2" {...regionProps("Ruaraka", "Nairobi")} />
-                  <text x="425" y="385" textAnchor="middle" fontSize="11" fill="#0c1e4a" pointerEvents="none">Ruaraka</text>
-                </svg>
+                <div className="bg-emerald-900 rounded-xl p-6 text-center shadow-inner">
+                  <h3 className="text-white font-bold text-lg mb-2">Can't find what you need?</h3>
+                  <p className="text-emerald-100 text-sm">Search across all 47 regions in Nairobi, Kiambu, and Machakos using the search bar above.</p>
+                </div>
               </div>
             )}
 
@@ -2013,12 +1973,12 @@ export default function Home() {
         </div>
 
         {/* ============ BUSINESSES IN SELECTED REGION ============ */}
-      {selected && (
+      {(selected || searchQuery !== "") && (
         <div className="mt-12">
           <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
             <div>
               <h2 className="text-2xl font-bold text-slate-800 mb-1">
-                {contentTab === "businesses" ? "Businesses" : "Properties"} in {selected}
+                {contentTab === "businesses" ? "Businesses" : "Properties"} in {selected || "Search Results"}
               </h2>
               <p className="text-slate-600 text-sm">
                 {contentTab === "businesses"
@@ -2026,15 +1986,15 @@ export default function Home() {
                   : `${properties.length} listings · click WhatsApp to enquire`}
               </p>
             </div>
-            <span
-              className={`text-xs font-semibold px-3 py-1 rounded-full ${
-                countyOf(selected) === "Kiambu"
-                  ? "bg-purple-100 text-purple-700"
-                  : "bg-blue-100 text-blue-700"
-              }`}
-            >
-              {countyOf(selected)} County
-            </span>
+                       <span
+                className={`text-xs font-semibold px-3 py-1 rounded-full ${
+                  selected && countyOf(selected) === "Kiambu"
+                    ? "bg-purple-100 text-purple-700"
+                    : "bg-blue-100 text-blue-700"
+                }`}
+              >
+                {selected ? `${countyOf(selected)} County` : "Search Results"}
+              </span>
           </div>
 
           {/* Content toggle */}
@@ -2047,7 +2007,7 @@ export default function Home() {
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              🏪 Businesses ({businesses.length})
+              🏪 Businesses ({filteredBusinesses.length})
             </button>
             <button
               onClick={() => setContentTab("properties")}
@@ -2057,13 +2017,13 @@ export default function Home() {
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              🏠 Properties ({properties.length})
+              🏠 Properties ({filteredProperties.length})
             </button>
           </div>
 
           {contentTab === "businesses" && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {businesses.map((b) => (
+             {filteredBusinesses.map((b) => (
                 <BusinessCard
                   key={b.id}
                   business={b}
@@ -2085,7 +2045,7 @@ export default function Home() {
 
           {contentTab === "properties" && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                         {properties.map((p) => (
+                         {filteredProperties.map((p) => (
               <PropertyCard
                 key={p.id}
                 property={p}
@@ -2100,7 +2060,7 @@ export default function Home() {
       )}
 
         {/* No region selected yet — prompt */}
-        {!selected && (
+        {(!selected && searchQuery === "") && (
           <div className="mt-12 text-center py-12">
             <div className="text-5xl mb-3">🏪</div>
             <p className="text-slate-600 font-medium">
