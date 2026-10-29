@@ -1755,13 +1755,22 @@ const countyOf = (name: string): "Nairobi" | "Kiambu" | "Machakos" =>
     b.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
     b.region.toLowerCase().includes(searchQuery.toLowerCase())
   );
+    const filteredProperties = properties.filter((p) => {
+    if (searchQuery === "") return true;
+    const query = searchQuery.toLowerCase();
+    
+    return (
+      p.name.toLowerCase().includes(query) || 
+      p.property_type.toLowerCase().includes(query) || 
+      p.region.toLowerCase().includes(query) ||
+      p.listing_type.toLowerCase().includes(query) ||
+      query.split(" ").some(word => 
+        p.property_type.toLowerCase().includes(word) || 
+        p.listing_type.toLowerCase().includes(word)
+      )
+    );
+  });
 
-  const filteredProperties = properties.filter((p) => 
-    searchQuery === "" || 
-    p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    p.property_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.region.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -1856,18 +1865,32 @@ const countyOf = (name: string): "Nairobi" | "Kiambu" | "Machakos" =>
 
       {/* ============ MAIN CONTENT ============ */}
       <div id="explore" className="max-w-6xl mx-auto px-6 py-12">
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-slate-800 mb-1">
-            Pick a region
-          </h2>
-          <p className="text-slate-600">
-            Explore the map · Take a 360° look · Watch its story
-          </p>
-        </div>
-
-        <div className="mb-8">
+        <div className="mb-8 flex justify-end">
           
-
+          <div className="w-full md:w-72">
+          <div className="w-full md:w-72">
+            <label className="block text-sm font-semibold text-slate-700 mb-1">Filter by Region</label>
+            <select 
+              value={selected || ""}
+              onChange={(e) => {
+                setSelected(e.target.value);
+                setSearchQuery(""); // Clear search when picking a region
+              }}
+              className="w-full px-4 py-3 border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-700 shadow-sm"
+            >
+              <option value="">All Regions</option>
+              <optgroup label="Kiambu (Kamakis/Ruiru)">
+                {KIAMBU_REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
+              </optgroup>
+              <optgroup label="Nairobi">
+                {NAIROBI_REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
+              </optgroup>
+              <optgroup label="Machakos">
+                {MACHAKOS_REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
+              </optgroup>
+            </select>
+          </div>
+        </div>
           {/* RIGHT PANEL */}
           <div className="w-full bg-white rounded-2xl shadow p-6">
             <div className="flex items-center justify-between mb-4 border-b border-slate-200">
